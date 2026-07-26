@@ -417,6 +417,9 @@
           <button data-m="end" class="on">Końcówka</button>
           <button data-m="full">+ rodzajnik</button>
         </div>
+        <label class="seg manual" id="f-hideart" style="align-items:center;gap:7px;padding:3px 11px;cursor:pointer;font-size:13px;font-weight:600;color:var(--muted);">
+          <input type="checkbox" id="hide-art-cb" style="width:15px;height:15px;accent-color:var(--gold);cursor:pointer;margin:0;"> 🙈 Ukryj przedimek
+        </label>
         <div class="seg manual" id="f-input">
           <button data-i="click" class="on">Przyciski</button>
           <button data-i="type">Wpisywanie</button>
@@ -1651,6 +1654,7 @@ function coachHTML(c,g,art,end){
 
 /* ================= TRENING ================= */
 let filterDecl="all", mode="end", inputMode="click";
+let hideArt=false; // 🙈 tryb: chowaj formę przedimka, użytkownik odtwarza ją sam
 let srsMode=false;
 let current=null, answered=false, streak=0;
 let wrongQueue=[], cardsSince=0;
@@ -1673,6 +1677,8 @@ if(!META.plan || META.plan.d!==todayStr()) META.plan={d:todayStr(),step:0,got:0,
 const effDecl =()=> planActive ? PLAN[META.plan.step].decl : filterDecl;
 const effMode =()=> planActive ? PLAN[META.plan.step].mode : mode;
 const effInput=()=> planActive ? PLAN[META.plan.step].input : inputMode;
+// przedimek jest ukryty (do odtworzenia) zawsze w trybie „+rodzajnik” LUB gdy włączono 🙈
+const artHidden=()=> effMode()==="full" || hideArt;
 const effCases=()=> planActive ? CASES : [...caseSel];
 const effGens =()=> planActive ? GENDERS : [...genSel];
 
@@ -1815,6 +1821,9 @@ document.getElementById("f-mode").addEventListener("click",e=>{
   document.querySelectorAll("#f-mode button").forEach(x=>x.classList.remove("on")); b.classList.add("on");
   mode=b.dataset.m; updateFiltersSummary(); nextCard();
 });
+document.getElementById("hide-art-cb").addEventListener("change",e=>{
+  hideArt=e.target.checked; nextCard();
+});
 
 function cellKey(d,c,g){return d+"|"+c+"|"+g;}
 function cellOf(d,c,g){
@@ -1932,7 +1941,7 @@ let stage;
 function nextCard(){
   if(planActive && META.plan.done) return;
   current=makeItem(); answered=false; cardsSince++;
-  stage = (effMode()==="full" && current.ph.art) ? "art" : "end";
+  stage = (artHidden() && current.ph.art) ? "art" : "end";
   drawCard();
 }
 function drawCard(){
@@ -1946,7 +1955,7 @@ function drawCard(){
   const cell=cellOf(d,c,g);
   const shaky = cell.errs>0 && cell.tries>0 && (cell.errs/cell.tries)>=0.25 && !redo;
   if((shaky || deDiff==="easy") && deDiff!=="hard"){
-    const artIc = ph.art ? (ART_PEG[ph.art]||{ic:"❔"}).ic+" "+ph.art : "∅";
+    const artIc = ph.art ? (hideArt ? "❔" : (ART_PEG[ph.art]||{ic:"❔"}).ic+" "+ph.art) : "∅";
     const lead = deDiff==="easy" ? "💡 Scena parami:" : "💭 To pole ostatnio się myliło. Odtwórz scenę parami:";
     memoCue.innerHTML = `${lead} ${CASE[c].ic} → ${GENDER[g].ic} → ${artIc} → ❓`;
     memoCue.classList.add("on");
@@ -1954,7 +1963,7 @@ function drawCard(){
 
   let html="";
   if(effInput()==="type"){
-    const artPart = (effMode()==="full")
+    const artPart = (artHidden())
       ? `<span class="typair"><input class="tend art" id="in-art" placeholder="rodz." autocomplete="off" autocapitalize="off" spellcheck="false"></span> `
       : (ph.art?ph.art+" ":"");
     const nounPart = (current.np && current.np.suf!==null)
@@ -1976,7 +1985,7 @@ function drawCard(){
 function drawTypingControls(){
   answersEl.innerHTML="";
   const lbl=document.createElement("div"); lbl.className="lbl";
-  lbl.textContent="wpisz końcówki przymiotnika i rzeczownika"+(effMode()==="full"?" oraz rodzajnik":"")+" — puste pole = brak końcówki";
+  lbl.textContent="wpisz końcówki przymiotnika i rzeczownika"+(artHidden()?" oraz rodzajnik":"")+" — puste pole = brak końcówki";
   answersEl.appendChild(lbl);
   const b=document.createElement("button"); b.className="btn primary"; b.type="button"; b.id="btn-check";
   b.textContent="Sprawdź (Enter)";
