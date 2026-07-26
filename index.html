@@ -2342,7 +2342,7 @@ function renderStats(){
 }
 
 /* ================= ZAKŁADKI ================= */
-(function renderLegend(){
+function renderLegend(){
   document.getElementById("legend").innerHTML = `
   <div class="lg"><h3>Deklinacja — cecha sceny (otwiera każdy obraz)</h3>
     <div class="peg"><span class="ic">🕸️</span><span class="k">słaba</span><span class="d"><b>Zakurzone / stare / omszałe</b> (der-słowa) — wszystko w pajęczynach, spróchniałe.</span></div>
@@ -2377,7 +2377,15 @@ function renderStats(){
     <div class="peg"><span class="ic">💡</span><span class="k"></span><span class="d">Dopełniacz + celownik ≈ zawsze <b>‑en</b> (wyjątki tylko w mocnej).</span></div>
     <div class="peg"><span class="ic">💡</span><span class="k"></span><span class="d">Po „des” nigdy „‑es” — kombinacja <b>des …es nie istnieje</b>.</span></div>
   </div>`;
-})();
+}
+// Uruchom dopiero, gdy DOM na pewno gotowy — plus fallback, gdyby #legend został pusty.
+function ensureLegend(){
+  try{ renderLegend(); }catch(e){}
+  const el=document.getElementById("legend");
+  if(!el || !el.innerHTML.trim()){ try{ renderLegend(); }catch(e){} }
+}
+if(document.readyState==="loading") document.addEventListener("DOMContentLoaded", ensureLegend);
+else ensureLegend();
 
 /* ================= SYSTEM ================= */
 (function renderSystem(){
