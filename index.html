@@ -1927,7 +1927,7 @@ function nextCard(){
 }
 function drawCard(){
   const {d,c,g,noun,adj,ph,redo}=current;
-  qCtx.innerHTML = `<span class="ic">${CASE[c].ic}</span>${CASE[c].name} · <span class="ic">${GENDER[g].ic}</span>${GENDER[g].name} · ${DECL_LABEL[d]}`;
+  qCtx.innerHTML = `<span class="ic">${CASE[c].ic}</span>${CASE[c].name} · ${({N:"Nominativ",G:"Genitiv",D:"Dativ",A:"Akkusativ"})[c]} (${c}) · <span class="ic">${GENDER[g].ic}</span>${GENDER[g].name} · ${DECL_LABEL[d]}`;
   qPl.textContent = deDiff==="hard" ? `(${CASE[c].q})` : `„${plPhrase(noun,adj,c,g)}” (${CASE[c].q})`;
   redoFlag.classList.toggle("on",!!redo);
   verdictEl.classList.remove("on");
