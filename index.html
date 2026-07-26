@@ -1733,19 +1733,19 @@ function renderPlanBanner(){
     <div class="pmeta"><span>${META.plan.got} / ${st.goal} poprawnych</span>
     <button class="skip" id="plan-skip">pomiń krok →</button></div>`;
   const s=document.getElementById("plan-skip");
-  if(s) s.addEventListener("click",planAdvance);
+  if(s) s.addEventListener("click",()=>planAdvance());
 }
-function planAdvance(){
+function planAdvance(suppressDraw){
   if(META.plan.step>=PLAN.length-1){META.plan.done=true;}
   else {META.plan.step++;META.plan.got=0;toast("✅ "+PLAN[META.plan.step-1].name.split("·")[1].trim()+" zaliczony!");}
   saveAll(); renderPlanBanner();
-  if(!META.plan.done) nextCard();
+  if(!META.plan.done && !suppressDraw) nextCard();
 }
 function planProgress(ok){
   if(!planActive||META.plan.done) return;
   if(ok){
     META.plan.got++;
-    if(META.plan.got>=PLAN[META.plan.step].goal) planAdvance();
+    if(META.plan.got>=PLAN[META.plan.step].goal) planAdvance(true);
     else renderPlanBanner();
   } else {
     META.plan.got=Math.max(0,META.plan.got-1); // błąd cofa o 1 — bez litości, ale sprawiedliwie
