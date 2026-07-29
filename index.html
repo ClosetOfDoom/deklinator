@@ -1557,7 +1557,8 @@ function registerResult(ok,isEnding){
   cell.tries++; cell.last=Date.now();
   if(!ok){
     cell.errs++; cell.lastWrong=Date.now(); streak=0;
-    if(!current.redo) wrongQueue.push({...current, redo:false});
+    // wyzeruj licznik, żeby błędna karta wróciła dopiero po >=3 innych (a nie od razu, gdy cardsSince zdążył urosnąć)
+    if(!current.redo){ wrongQueue.push({...current, redo:false}); cardsSince=0; }
   } else if(isEnding){
     streak++; META.today.n++;
     if(streak>META.streak) META.streak=streak;
