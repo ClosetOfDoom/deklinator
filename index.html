@@ -390,6 +390,9 @@
         <label class="seg" id="f-hidegen" style="align-items:center;gap:7px;padding:3px 11px;cursor:pointer;font-size:13px;font-weight:600;color:var(--muted);">
           <input type="checkbox" id="hide-gen-cb" style="width:15px;height:15px;accent-color:var(--gold);cursor:pointer;margin:0;"> 🙈 Ukryj rodzaj
         </label>
+        <label class="seg" id="f-hidenoun" style="align-items:center;gap:7px;padding:3px 11px;cursor:pointer;font-size:13px;font-weight:600;color:var(--muted);">
+          <input type="checkbox" id="hide-noun-cb" style="width:15px;height:15px;accent-color:var(--gold);cursor:pointer;margin:0;"> 🙈 Ukryj końcówkę rzeczownika
+        </label>
         <div class="streak">
           <span>seria <b id="s-streak">0</b></span>
           <span>dziś <b id="s-today">0</b></span>
@@ -1117,6 +1120,7 @@ function coachHTML(c,g,art,end){
 let filterDecl="all", mode="end", inputMode="click";
 let hideArt=false; // 🙈 tryb: chowaj formę przedimka, użytkownik odtwarza ją sam
 let hideGender=false; // 🙈 tryb: chowaj rodzaj (ikonę i nazwę) w linii kontekstu — user rozpoznaje sam
+let hideNounEnd=false; // 🙈 tryb: w dopełniaczu M/N zostaw lukę na końcówkę rzeczownika (-/-s/-es)
 let srsMode=false;
 let current=null, answered=false, streak=0;
 let wrongQueue=[], cardsSince=0;
@@ -1141,6 +1145,8 @@ const effMode =()=> planActive ? PLAN[META.plan.step].mode : mode;
 const effInput=()=> planActive ? PLAN[META.plan.step].input : inputMode;
 // przedimek jest ukryty (do odtworzenia) zawsze w trybie „+rodzajnik” LUB gdy włączono 🙈
 const artHidden=()=> effMode()==="full" || hideArt;
+// luka na końcówkę rzeczownika: tylko dopełniacz M/N z regularną końcówką (‑s/‑es), gdy włączony tryb
+const nounEndGap=()=> hideNounEnd && current && current.c==="G" && (current.g==="M"||current.g==="N") && current.np && current.np.suf!==null;
 const effCases=()=> planActive ? CASES : [...caseSel];
 const effGens =()=> planActive ? GENDERS : [...genSel];
 
@@ -1288,6 +1294,9 @@ document.getElementById("hide-art-cb").addEventListener("change",e=>{
 });
 document.getElementById("hide-gen-cb").addEventListener("change",e=>{
   hideGender=e.target.checked; nextCard();
+});
+document.getElementById("hide-noun-cb").addEventListener("change",e=>{
+  hideNounEnd=e.target.checked; nextCard();
 });
 
 function cellKey(d,c,g){return d+"|"+c+"|"+g;}
@@ -1440,10 +1449,13 @@ function drawCard(){
     drawTypingControls();
     return;
   }
+  const nounDisp = nounEndGap()
+    ? `<span class="typair">${current.np.base}<input class="tend" id="in-noun" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="końc."></span>`
+    : ph.nounF;
   if(stage==="art"){
-    html = `<span class="blank art">___</span> ${adjStem(adj.de,ph.end)}<span class="blank">___</span> ${ph.nounF}`;
+    html = `<span class="blank art">___</span> ${adjStem(adj.de,ph.end)}<span class="blank">___</span> ${nounDisp}`;
   } else {
-    html = `${ph.art?ph.art+" ":""}${ph.stem}<span class="blank">___</span> ${ph.nounF}`;
+    html = `${ph.art?ph.art+" ":""}${ph.stem}<span class="blank">___</span> ${nounDisp}`;
   }
   qPhrase.innerHTML=html;
   drawAnswers();
@@ -1530,7 +1542,7 @@ function drawAnswers(){
   } else {
     correct=current.ph.end;
     options=["e","en","er","es","em"];
-    label="wybierz końcówkę przymiotnika";
+    label = nounEndGap() ? "wybierz końcówkę przymiotnika · wpisz końcówkę rzeczownika (‑/‑s/‑es)" : "wybierz końcówkę przymiotnika";
   }
   const lbl=document.createElement("div"); lbl.className="lbl"; lbl.textContent=label; answersEl.appendChild(lbl);
   for(const o of options){
@@ -1557,8 +1569,16 @@ function pick(btn,val,correct){
   answersEl.querySelectorAll(".ans").forEach(b=>b.disabled=true);
   btn.classList.add(ok?"picked-ok":"picked-bad");
   if(!ok) answersEl.querySelectorAll(".ans").forEach(b=>{if(b.textContent==="‑"+correct)b.classList.add("correct");});
-  registerResult(ok,true);
-  showVerdict(ok, ok?null:val);
+  // końcówka rzeczownika do wypełnienia (tryb 🙈 Ukryj końcówkę rzeczownika, dopełniacz M/N)
+  let finalOk=ok, extra="";
+  const nounIn=document.getElementById("in-noun");
+  if(nounIn){
+    const okN=normEnd(nounIn.value)===current.np.suf;
+    markInput(nounIn,okN,current.np.suf||"∅"); nounIn.disabled=true;
+    if(!okN){ finalOk=false; extra=nounNote(); }
+  }
+  registerResult(finalOk,true);
+  showVerdict(finalOk, ok?null:val, extra);
 }
 function registerResult(ok,isEnding){
   const cell=cellOf(current.d,current.c,current.g);
