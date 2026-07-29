@@ -387,6 +387,9 @@
         <label class="seg" id="f-hideart" style="align-items:center;gap:7px;padding:3px 11px;cursor:pointer;font-size:13px;font-weight:600;color:var(--muted);">
           <input type="checkbox" id="hide-art-cb" style="width:15px;height:15px;accent-color:var(--gold);cursor:pointer;margin:0;"> 🙈 Ukryj przedimek
         </label>
+        <label class="seg" id="f-hidegen" style="align-items:center;gap:7px;padding:3px 11px;cursor:pointer;font-size:13px;font-weight:600;color:var(--muted);">
+          <input type="checkbox" id="hide-gen-cb" style="width:15px;height:15px;accent-color:var(--gold);cursor:pointer;margin:0;"> 🙈 Ukryj rodzaj
+        </label>
         <div class="streak">
           <span>seria <b id="s-streak">0</b></span>
           <span>dziś <b id="s-today">0</b></span>
@@ -1113,6 +1116,7 @@ function coachHTML(c,g,art,end){
 /* ================= TRENING ================= */
 let filterDecl="all", mode="end", inputMode="click";
 let hideArt=false; // 🙈 tryb: chowaj formę przedimka, użytkownik odtwarza ją sam
+let hideGender=false; // 🙈 tryb: chowaj rodzaj (ikonę i nazwę) w linii kontekstu — user rozpoznaje sam
 let srsMode=false;
 let current=null, answered=false, streak=0;
 let wrongQueue=[], cardsSince=0;
@@ -1282,6 +1286,9 @@ document.getElementById("f-mode").addEventListener("click",e=>{
 document.getElementById("hide-art-cb").addEventListener("change",e=>{
   hideArt=e.target.checked; nextCard();
 });
+document.getElementById("hide-gen-cb").addEventListener("change",e=>{
+  hideGender=e.target.checked; nextCard();
+});
 
 function cellKey(d,c,g){return d+"|"+c+"|"+g;}
 function cellOf(d,c,g){
@@ -1404,7 +1411,8 @@ function nextCard(){
 }
 function drawCard(){
   const {d,c,g,noun,adj,ph,redo}=current;
-  qCtx.innerHTML = `<span class="ic">${CASE[c].ic}</span>${CASE[c].name} · ${({N:"Nominativ",G:"Genitiv",D:"Dativ",A:"Akkusativ"})[c]} (${c}) · <span class="ic">${GENDER[g].ic}</span>${GENDER[g].name} · ${DECL_LABEL[d]}`;
+  const genderCtx = hideGender ? `<span class="ic">🙈</span>rodzaj?` : `<span class="ic">${GENDER[g].ic}</span>${GENDER[g].name}`;
+  qCtx.innerHTML = `<span class="ic">${CASE[c].ic}</span>${CASE[c].name} · ${({N:"Nominativ",G:"Genitiv",D:"Dativ",A:"Akkusativ"})[c]} (${c}) · ${genderCtx} · ${DECL_LABEL[d]}`;
   qPl.textContent = deDiff==="hard" ? `(${CASE[c].q})` : `„${plPhrase(noun,adj,c,g)}” (${CASE[c].q})`;
   redoFlag.classList.toggle("on",!!redo);
   verdictEl.classList.remove("on");
@@ -1415,7 +1423,7 @@ function drawCard(){
   if((shaky || deDiff==="easy") && deDiff!=="hard"){
     const artIc = ph.art ? (hideArt ? "❔" : (ART_PEG[ph.art]||{ic:"❔"}).ic+" "+ph.art) : "∅";
     const lead = deDiff==="easy" ? "💡 Scena parami:" : "💭 To pole ostatnio się myliło. Odtwórz scenę parami:";
-    memoCue.innerHTML = `${lead} ${CASE[c].ic} → ${GENDER[g].ic} → ${artIc} → ❓`;
+    memoCue.innerHTML = `${lead} ${CASE[c].ic} → ${hideGender?"❔":GENDER[g].ic} → ${artIc} → ❓`;
     memoCue.classList.add("on");
   } else memoCue.classList.remove("on");
 
