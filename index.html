@@ -1412,9 +1412,10 @@ const qCtx=document.getElementById("q-ctx"), qPl=document.getElementById("q-pl")
       redoFlag=document.getElementById("redo-flag"), memoCue=document.getElementById("memo-cue");
 
 let stage;
+let artWrong=false; // czy etap wyboru rodzajnika został oblany na tej karcie
 function nextCard(){
   if(planActive && META.plan.done) return;
-  current=makeItem(); answered=false; cardsSince++;
+  current=makeItem(); answered=false; artWrong=false; cardsSince++;
   stage = (artHidden() && current.ph.art) ? "art" : "end";
   drawCard();
 }
@@ -1559,7 +1560,8 @@ function pick(btn,val,correct){
     btn.classList.add(ok?"picked-ok":"picked-bad");
     if(!ok){
       answersEl.querySelectorAll(".ans").forEach(b=>{if(b.textContent===correct)b.classList.add("correct");});
-      registerResult(false);
+      artWrong=true;               // zły rodzajnik = cała karta liczy się jako błąd
+      registerResult(false);       // rejestruje błąd i wrzuca kartę do wrongQueue
       setTimeout(()=>{stage="end";drawCard();},900);
     } else setTimeout(()=>{stage="end";drawCard();},450);
     return;
@@ -1577,8 +1579,15 @@ function pick(btn,val,correct){
     markInput(nounIn,okN,current.np.suf||"∅"); nounIn.disabled=true;
     if(!okN){ finalOk=false; extra=nounNote(); }
   }
-  registerResult(finalOk,true);
-  showVerdict(finalOk, ok?null:val, extra);
+  if(artWrong){
+    // błąd rodzajnika już zarejestrowano (i wrzucono kartę do powtórki) w etapie „art";
+    // nie nadpisuj tego sukcesem — cała fraza liczy się jako błąd
+    extra = (extra?extra+"<br>":"") + "Rodzajnik był błędny — cała fraza liczy się jako błąd i wróci do powtórki.";
+    showVerdict(false, ok?null:val, extra);
+  } else {
+    registerResult(finalOk,true);
+    showVerdict(finalOk, ok?null:val, extra);
+  }
 }
 function registerResult(ok,isEnding){
   const cell=cellOf(current.d,current.c,current.g);
