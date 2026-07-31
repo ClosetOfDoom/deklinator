@@ -55,6 +55,8 @@
   td.cell.weak,#vtables td.vweak{box-shadow:inset 0 0 0 2.5px var(--bad);}
   .wbadge{position:absolute;top:2px;right:3px;font-family:"Space Mono",monospace;font-size:9px;font-weight:700;
     color:var(--bad);background:var(--bad-bg);border-radius:5px;padding:0 3px;line-height:1.5;}
+  .wbadge.mid{color:var(--muted);background:#EEEDE8;opacity:.85;}
+  .wbadge.ok{color:var(--ok);background:var(--ok-bg);opacity:.9;}
   .weak-legend{font-size:12px;color:var(--muted);margin:2px 0 14px;display:flex;align-items:center;gap:7px;}
   .weak-legend .sw{width:14px;height:14px;border-radius:4px;box-shadow:inset 0 0 0 2.5px var(--bad);}
   td.vbcell.picked{outline:2.5px solid var(--gold);outline-offset:-2px;}
@@ -1668,18 +1670,18 @@ function paintTableWeakness(){
   el.querySelectorAll(".wbadge").forEach(b=>b.remove());
   el.querySelectorAll("td.cell").forEach(td=>{
     const cell=CELLS[cellKey(td.dataset.d,td.dataset.c,td.dataset.g)];
-    if(!cell||cell.tries<3) return;
+    if(!cell||cell.tries<3) return;                 // procent tylko przy polach z min. 3 próbami
     const acc=(cell.tries-cell.errs)/cell.tries;
-    if(acc<0.6){
-      td.classList.add("weak");
-      const b=document.createElement("span"); b.className="wbadge"; b.textContent=Math.round(acc*100)+"%";
-      td.appendChild(b);
-    }
+    const b=document.createElement("span"); b.className="wbadge"; b.textContent=Math.round(acc*100)+"%";
+    if(acc<0.6){ td.classList.add("weak"); }         // słabe: czerwona ramka + czerwony badge (jak dotąd)
+    else if(acc<0.8){ b.classList.add("mid"); }       // średnie: dyskretny szary
+    else { b.classList.add("ok"); }                   // mocne: dyskretny zielony
+    td.appendChild(b);
   });
   // legenda raz
   if(!document.getElementById("weak-legend-de")){
     const lg=document.createElement("div"); lg.className="weak-legend"; lg.id="weak-legend-de";
-    lg.innerHTML=`<span class="sw"></span> czerwona ramka = to pole idzie Ci poniżej 60% (min. 3 próby)`;
+    lg.innerHTML=`<span class="sw"></span> czerwona ramka = poniżej 60% (min. 3 próby). Każde pole z min. 3 próbami pokazuje % skuteczności: <b style="color:var(--muted)">szary 60–79%</b>, <b style="color:var(--ok)">zielony ≥80%</b>.`;
     el.parentNode.insertBefore(lg, el);
   }
 }
