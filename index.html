@@ -1453,7 +1453,7 @@ function drawCard(){
     return;
   }
   const nounDisp = nounEndGap()
-    ? `<span class="typair">${current.np.base}<input class="tend" id="in-noun" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="końc."></span>`
+    ? `<span class="typair">${current.np.base}<input class="tend" id="in-noun" autocomplete="off" autocapitalize="off" spellcheck="false"></span>`
     : ph.nounF;
   if(stage==="art"){
     html = `<span class="blank art">___</span> ${adjStem(adj.de,ph.end)}<span class="blank">___</span> ${nounDisp}`;
