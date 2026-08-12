@@ -1188,12 +1188,51 @@ VB.it_pres=(function(){
     PERSONS,REG,PERSON_PEG,VERBS,MNEMO:{},FULL,conjugate,kindOf,ct,rs,stemOf:()=>null,demo133:"fare"};
 })();
 
+/* ---------- ES: presente ---------- */
+VB.es_pres=(function(){
+  const PERSONS=["yo","tu","el","nos","vos","ellos"];
+  const REG={ar:{yo:"o",tu:"as",el:"a",nos:"amos",vos:"áis",ellos:"an"},
+    er:{yo:"o",tu:"es",el:"e",nos:"emos",vos:"éis",ellos:"en"},
+    ir:{yo:"o",tu:"es",el:"e",nos:"imos",vos:"ís",ellos:"en"}};
+  const PERSON_PEG={yo:{n:1,ic:"🕯️",peg:"świeca",pl:"ja"},tu:{n:2,ic:"🦢",peg:"łabędź",pl:"ty"},el:{n:3,ic:"🍀",peg:"koniczyna",pl:"on/ona"},nos:{n:4,ic:"⛵",peg:"żagiel",pl:"my"},vos:{n:5,ic:"🖐️",peg:"dłoń",pl:"wy"},ellos:{n:6,ic:"🎲",peg:"kostka",pl:"oni"}};
+  const FULL={
+    ser:{yo:"soy",tu:"eres",el:"es",nos:"somos",vos:"sois",ellos:"son"},
+    estar:{yo:"estoy",tu:"estás",el:"está",nos:"estamos",vos:"estáis",ellos:"están"},
+    ir:{yo:"voy",tu:"vas",el:"va",nos:"vamos",vos:"vais",ellos:"van"},
+    tener:{yo:"tengo",tu:"tienes",el:"tiene",nos:"tenemos",vos:"tenéis",ellos:"tienen"},
+    hacer:{yo:"hago",tu:"haces",el:"hace",nos:"hacemos",vos:"hacéis",ellos:"hacen"},
+    poder:{yo:"puedo",tu:"puedes",el:"puede",nos:"podemos",vos:"podéis",ellos:"pueden"},
+    querer:{yo:"quiero",tu:"quieres",el:"quiere",nos:"queremos",vos:"queréis",ellos:"quieren"},
+    venir:{yo:"vengo",tu:"vienes",el:"viene",nos:"venimos",vos:"venís",ellos:"vienen"},
+    decir:{yo:"digo",tu:"dices",el:"dice",nos:"decimos",vos:"decís",ellos:"dicen"},
+    poner:{yo:"pongo",tu:"pones",el:"pone",nos:"ponemos",vos:"ponéis",ellos:"ponen"},
+    salir:{yo:"salgo",tu:"sales",el:"sale",nos:"salimos",vos:"salís",ellos:"salen"},
+    saber:{yo:"sé",tu:"sabes",el:"sabe",nos:"sabemos",vos:"sabéis",ellos:"saben"},
+    dar:{yo:"doy",tu:"das",el:"da",nos:"damos",vos:"dais",ellos:"dan"},
+    ver:{yo:"veo",tu:"ves",el:"ve",nos:"vemos",vos:"veis",ellos:"ven"},
+    pensar:{yo:"pienso",tu:"piensas",el:"piensa",nos:"pensamos",vos:"pensáis",ellos:"piensan"},
+    dormir:{yo:"duermo",tu:"duermes",el:"duerme",nos:"dormimos",vos:"dormís",ellos:"duermen"},
+    pedir:{yo:"pido",tu:"pides",el:"pide",nos:"pedimos",vos:"pedís",ellos:"piden"}
+  };
+  const VERBS=[["hablar","mówić"],["comer","jeść"],["vivir","żyć"],["ser","być"],["estar","być"],["ir","iść"],["tener","mieć"],["hacer","robić"],["poder","móc"],["querer","chcieć"],["venir","przyjść"],["decir","powiedzieć"],["poner","kłaść"],["salir","wychodzić"],["saber","wiedzieć"],["dar","dawać"],["ver","widzieć"],["pensar","myśleć"],["dormir","spać"],["pedir","prosić"]];
+  const ct=inf=>inf.endsWith("ar")?"ar":inf.endsWith("er")?"er":"ir";
+  const rs=inf=>inf.replace(/(ar|er|ir)$/,"");
+  function conjugate(inf){const out={};
+    if(FULL[inf]){PERSONS.forEach(p=>out[p]={form:FULL[inf][p]});out.__kind="full";return out;}
+    const t=ct(inf),r=rs(inf);
+    PERSONS.forEach(p=>out[p]={form:r+REG[t][p]});out.__kind="reg";return out;}
+  const kindOf=inf=>FULL[inf]?"full":"reg";
+  return {id:"espres",name:"Presente",sysSub:"Regularne = 2 zestawy końcówek (-ar, oraz -er/-ir prawie wspólne). Nieregularne i zmiany rdzenia (e→ie, o→ue, e→i) wykuwasz w całości.",
+    PERSONS,REG,PERSON_PEG,VERBS,MNEMO:{},FULL,conjugate,kindOf,ct,rs,stemOf:()=>null,demo133:"tener"};
+})();
+
 /* ============ REJESTR MODUŁÓW  (klucz: "język|czas") ============ */
 /* Dodanie nowego modułu = JEDNA linia: MODULES['xx|yy'] = VB.zz  (obiekt spełniający kontrakt VB). */
 const MODULES = {
   'it|past': VB.it,        // Passato remoto
   'it|pres': VB.it_pres,   // Presente
   'es|past': VB.es,        // Pretérito indefinido
+  'es|pres': VB.es_pres,   // Presente
 };
 const LANG_META = {
   it:{flag:'🇮🇹',name:'Włoski'},
