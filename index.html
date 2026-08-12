@@ -1149,11 +1149,51 @@ document.addEventListener("click",e=>{if(!e.target.closest("#vfilters-body .dd")
 document.addEventListener("keydown",e=>{if(!document.getElementById("app-vb").offsetParent)return;if(e.code==="Space"&&vbAnswered&&e.target.tagName!=="INPUT"){e.preventDefault();vbNext();}});
 
 
+/* ---------- IT: presente ---------- */
+VB.it_pres=(function(){
+  const PERSONS=["io","tu","lui","noi","voi","loro"];
+  const REG={are:{io:"o",tu:"i",lui:"a",noi:"iamo",voi:"ate",loro:"ano"},
+    ere:{io:"o",tu:"i",lui:"e",noi:"iamo",voi:"ete",loro:"ono"},
+    ire:{io:"o",tu:"i",lui:"e",noi:"iamo",voi:"ite",loro:"ono"}};
+  const PERSON_PEG={io:{n:1,ic:"🕯️",peg:"świeca",pl:"ja"},tu:{n:2,ic:"🦢",peg:"łabędź",pl:"ty"},lui:{n:3,ic:"🍀",peg:"koniczyna",pl:"on/ona"},noi:{n:4,ic:"⛵",peg:"żagiel",pl:"my"},voi:{n:5,ic:"🖐️",peg:"dłoń",pl:"wy"},loro:{n:6,ic:"🎲",peg:"kostka",pl:"oni"}};
+  const FULL={
+    essere:{io:"sono",tu:"sei",lui:"è",noi:"siamo",voi:"siete",loro:"sono"},
+    avere:{io:"ho",tu:"hai",lui:"ha",noi:"abbiamo",voi:"avete",loro:"hanno"},
+    fare:{io:"faccio",tu:"fai",lui:"fa",noi:"facciamo",voi:"fate",loro:"fanno"},
+    andare:{io:"vado",tu:"vai",lui:"va",noi:"andiamo",voi:"andate",loro:"vanno"},
+    venire:{io:"vengo",tu:"vieni",lui:"viene",noi:"veniamo",voi:"venite",loro:"vengono"},
+    dire:{io:"dico",tu:"dici",lui:"dice",noi:"diciamo",voi:"dite",loro:"dicono"},
+    potere:{io:"posso",tu:"puoi",lui:"può",noi:"possiamo",voi:"potete",loro:"possono"},
+    volere:{io:"voglio",tu:"vuoi",lui:"vuole",noi:"vogliamo",voi:"volete",loro:"vogliono"},
+    dovere:{io:"devo",tu:"devi",lui:"deve",noi:"dobbiamo",voi:"dovete",loro:"devono"},
+    uscire:{io:"esco",tu:"esci",lui:"esce",noi:"usciamo",voi:"uscite",loro:"escono"},
+    stare:{io:"sto",tu:"stai",lui:"sta",noi:"stiamo",voi:"state",loro:"stanno"},
+    dare:{io:"do",tu:"dai",lui:"dà",noi:"diamo",voi:"date",loro:"danno"},
+    sapere:{io:"so",tu:"sai",lui:"sa",noi:"sappiamo",voi:"sapete",loro:"sanno"},
+    bere:{io:"bevo",tu:"bevi",lui:"beve",noi:"beviamo",voi:"bevete",loro:"bevono"},
+    rimanere:{io:"rimango",tu:"rimani",lui:"rimane",noi:"rimaniamo",voi:"rimanete",loro:"rimangono"},
+    tenere:{io:"tengo",tu:"tieni",lui:"tiene",noi:"teniamo",voi:"tenete",loro:"tengono"},
+    scegliere:{io:"scelgo",tu:"scegli",lui:"sceglie",noi:"scegliamo",voi:"scegliete",loro:"scelgono"},
+    capire:{io:"capisco",tu:"capisci",lui:"capisce",noi:"capiamo",voi:"capite",loro:"capiscono"}
+  };
+  const VERBS=[["parlare","mówić"],["credere","wierzyć"],["dormire","spać"],["capire","rozumieć"],["essere","być"],["avere","mieć"],["fare","robić"],["andare","iść"],["venire","przyjść"],["dire","powiedzieć"],["potere","móc"],["volere","chcieć"],["dovere","musieć"],["uscire","wychodzić"],["stare","stać/być"],["dare","dawać"],["sapere","wiedzieć"],["bere","pić"],["rimanere","zostać"],["tenere","trzymać"],["scegliere","wybierać"]];
+  const ct=inf=>inf.endsWith("are")?"are":inf.endsWith("ire")?"ire":"ere";
+  const rs=inf=>inf.replace(/(are|ere|ire)$/,"");
+  function conjugate(inf){const out={};
+    if(FULL[inf]){PERSONS.forEach(p=>out[p]={form:FULL[inf][p]});out.__kind="full";return out;}
+    const t=ct(inf),r=rs(inf);
+    PERSONS.forEach(p=>out[p]={form:r+REG[t][p]});out.__kind="reg";return out;}
+  const kindOf=inf=>FULL[inf]?"full":"reg";
+  return {id:"itpres",name:"Presente",sysSub:"Regularne = 3 zestawy końcówek (-are/-ere/-ire). Nieregularne wykuwasz w całości — najczęściej dzikie są io i 3. osoby.",
+    PERSONS,REG,PERSON_PEG,VERBS,MNEMO:{},FULL,conjugate,kindOf,ct,rs,stemOf:()=>null,demo133:"fare"};
+})();
+
 /* ============ REJESTR MODUŁÓW  (klucz: "język|czas") ============ */
 /* Dodanie nowego modułu = JEDNA linia: MODULES['xx|yy'] = VB.zz  (obiekt spełniający kontrakt VB). */
 const MODULES = {
-  'it|past': VB.it,   // Passato remoto
-  'es|past': VB.es,   // Pretérito indefinido
+  'it|past': VB.it,        // Passato remoto
+  'it|pres': VB.it_pres,   // Presente
+  'es|past': VB.es,        // Pretérito indefinido
 };
 const LANG_META = {
   it:{flag:'🇮🇹',name:'Włoski'},
