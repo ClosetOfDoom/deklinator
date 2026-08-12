@@ -1015,6 +1015,8 @@ nav.addEventListener("click",e=>{
   if(b.dataset.v==="exam" && !EX) examIntro();
   if(b.dataset.v==="story" && !ST) storyIntro();
   if(b.dataset.v==="words") renderWords();
+  // gwarancja: gdyby legenda nie zdążyła się wyrenderować przy starcie, dorenderuj przy otwarciu zakładki
+  if(b.dataset.v==="pegs"){ const lg=document.getElementById("legend"); if(lg && !lg.innerHTML.trim()) renderLegend(); }
 });
 
 /* ================= ŁAŃCUCH (wspólny builder) ================= */
