@@ -1253,6 +1253,26 @@ VB.it_fut=(function(){
     PERSONS,REG,PERSON_PEG,VERBS,MNEMO:{},FULL:{},conjugate,kindOf,ct,rs,stemOf:()=>null,demo133:"essere"};
 })();
 
+/* ---------- ES: futuro simple ---------- */
+VB.es_fut=(function(){
+  const PERSONS=["yo","tu","el","nos","vos","ellos"];
+  const END={yo:"é",tu:"ás",el:"á",nos:"emos",vos:"éis",ellos:"án"};
+  const IRR={tener:"tendr",poder:"podr",poner:"pondr",salir:"saldr",venir:"vendr",hacer:"har",decir:"dir",querer:"querr",saber:"sabr",haber:"habr"};
+  const PERSON_PEG={yo:{n:1,ic:"🕯️",peg:"świeca",pl:"ja"},tu:{n:2,ic:"🦢",peg:"łabędź",pl:"ty"},el:{n:3,ic:"🍀",peg:"koniczyna",pl:"on/ona"},nos:{n:4,ic:"⛵",peg:"żagiel",pl:"my"},vos:{n:5,ic:"🖐️",peg:"dłoń",pl:"wy"},ellos:{n:6,ic:"🎲",peg:"kostka",pl:"oni"}};
+  const REG={ar:{yo:"aré",tu:"arás",el:"ará",nos:"aremos",vos:"aréis",ellos:"arán"},
+    er:{yo:"eré",tu:"erás",el:"erá",nos:"eremos",vos:"eréis",ellos:"erán"},
+    ir:{yo:"iré",tu:"irás",el:"irá",nos:"iremos",vos:"iréis",ellos:"irán"}};
+  const ct=inf=>inf.endsWith("ar")?"ar":inf.endsWith("er")?"er":"ir";
+  const rs=inf=>inf.replace(/(ar|er|ir)$/,"");
+  function conjugate(inf){const out={};const st=IRR[inf]||inf;
+    PERSONS.forEach(p=>out[p]={form:st+END[p]});
+    out.__kind=IRR[inf]?"full":"reg";return out;}
+  const kindOf=inf=>IRR[inf]?"full":"reg";
+  const VERBS=[["hablar","mówić"],["comer","jeść"],["vivir","żyć"],["tener","mieć"],["poder","móc"],["poner","kłaść"],["salir","wychodzić"],["venir","przyjść"],["hacer","robić"],["decir","powiedzieć"],["querer","chcieć"],["saber","wiedzieć"],["haber","mieć (posił.)"]];
+  return {id:"esfut",name:"Futuro simple",sysSub:"Wspólne końcówki -é/-ás/-á/-emos/-éis/-án dodane do CAŁEGO bezokolicznika. Nieregularne: skrócony/zmieniony temat (tendr-, podr-, har-, dir-...).",
+    PERSONS,REG,PERSON_PEG,VERBS,MNEMO:{},FULL:{},conjugate,kindOf,ct,rs,stemOf:()=>null,demo133:"tener"};
+})();
+
 /* ============ REJESTR MODUŁÓW  (klucz: "język|czas") ============ */
 /* Dodanie nowego modułu = JEDNA linia: MODULES['xx|yy'] = VB.zz  (obiekt spełniający kontrakt VB). */
 const MODULES = {
@@ -1261,6 +1281,7 @@ const MODULES = {
   'it|fut':  VB.it_fut,    // Futuro semplice
   'es|past': VB.es,        // Pretérito indefinido
   'es|pres': VB.es_pres,   // Presente
+  'es|fut':  VB.es_fut,    // Futuro simple
 };
 const LANG_META = {
   it:{flag:'🇮🇹',name:'Włoski'},
