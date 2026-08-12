@@ -19,6 +19,15 @@
   body{margin:0;background:var(--paper);color:var(--ink);
     font-family:"Inter",system-ui,sans-serif;line-height:1.5;-webkit-font-smoothing:antialiased;}
   .wrap{max-width:1000px;margin:0 auto;padding:18px clamp(14px,3vw,32px) 80px;}
+    /* pasek języka + czasu */
+  .langbar{display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap;}
+  .langbar button{flex:1;min-width:110px;border:1px solid var(--line);background:var(--card);border-radius:13px;padding:11px 14px;font-family:inherit;font-size:14px;font-weight:600;color:var(--muted);cursor:pointer;display:flex;flex-direction:column;gap:2px;text-align:left;}
+  .langbar button span{font-family:"Space Mono",monospace;font-size:10.5px;font-weight:400;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;}
+  .langbar button.on{border-color:var(--gold);color:var(--ink);box-shadow:0 2px 8px rgba(184,134,11,.15);}
+  .langbar button.on span{color:var(--gold);}
+  .tensebar{display:flex;gap:6px;margin-bottom:18px;flex-wrap:wrap;}
+  .tensebar button{border:1px solid var(--line);background:var(--card);border-radius:999px;padding:6px 14px;font-family:inherit;font-size:12.5px;font-weight:600;color:var(--muted);cursor:pointer;}
+  .tensebar button.on{border-color:var(--gold);color:var(--ink);background:var(--gold-soft);}
   /* karta czasownika */
   .vq-verb{font-family:"Fraunces",serif;font-size:clamp(26px,5vw,40px);font-weight:600;letter-spacing:-.01em;}
   .vq-gloss{font-size:13.5px;color:var(--muted);font-style:italic;margin-top:2px;}
@@ -356,6 +365,9 @@
     <h1 id="app-title">Deklinator</h1>
     <span class="sub" id="app-sub">niemiecki · końcówki przymiotnika</span>
   </header>
+  <div class="langbar" id="langbar"></div>
+  <div class="tensebar" id="tensebar" style="display:none"></div>
+
 
   <div id="app-de">
   <nav id="nav">
@@ -579,12 +591,598 @@
     <div class="legend" id="legend"></div>
   </div>
   </div><!-- /app-de -->
+  <!-- ══════════════ CZASOWNIKI (IT / ES) ══════════════ -->
+  <div id="app-vb" style="display:none">
+    <nav id="vnav">
+      <button data-v="drill" class="on">Trening</button>
+      <button data-v="system">System</button>
+      <button data-v="tables">Tabele</button>
+      <button data-v="story">Historia</button>
+      <button data-v="pegs">Zakładki</button>
+    </nav>
+    <div class="view on" id="vb-drill">
+      <div class="panel">
+        <div class="drill-top">
+          <div class="seg" id="vf-diff">
+            <button data-d="easy">Łatwy</button>
+            <button data-d="med" class="on">Średni</button>
+            <button data-d="hard">Trudny</button>
+          </div>
+          <button class="filters-toggle" id="vfilters-toggle" aria-expanded="false">
+            <span id="vfilters-summary">Filtry</span> <span class="chev">▾</span>
+          </button>
+          <label class="pegtoggle"><input type="checkbox" id="vpeg-hint"> 🔑 podpowiedź zakładkowa</label>
+          <div class="streak"><span>seria <b id="vs-streak">0</b></span></div>
+        </div>
+        <div class="difftip" id="vdifftip"></div>
+        <div class="filters-body" id="vfilters-body">
+          <div class="seg" id="vf-scope">
+            <button data-s="all" class="on">Wszystkie typy</button>
+            <button data-s="reg">Regularne</button>
+            <button data-s="irr">Nieregularne</button>
+            <button data-s="srs">🔁 Powtórki</button>
+          </div>
+          <div class="dd" id="vf-conj">
+            <button type="button" class="dd-btn" aria-haspopup="true" aria-expanded="false">Koniugacja: <b>wszystkie</b> ▾</button>
+            <div class="dd-menu" role="menu" id="vf-conj-menu"></div>
+          </div>
+          <div class="dd" id="vf-person">
+            <button type="button" class="dd-btn" aria-haspopup="true" aria-expanded="false">Osoba: <b>wszystkie</b> ▾</button>
+            <div class="dd-menu" role="menu" id="vf-person-menu"></div>
+          </div>
+          <div class="dd" id="vf-verb">
+            <button type="button" class="dd-btn" aria-haspopup="true" aria-expanded="false">Czasownik: <b>wszystkie</b> ▾</button>
+            <div class="dd-menu" role="menu" id="vf-verb-menu" style="max-height:260px;overflow:auto"></div>
+          </div>
+        </div>
+        <div class="qcard" id="vqcard"></div>
+      </div>
+    </div>
+    <div class="view" id="vb-system"><h2 id="vsys-h">System</h2><p class="h2sub" id="vsys-sub"></p><div id="vsystem"></div></div>
+    <div class="view" id="vb-tables"><h2>Tabele</h2><p class="h2sub">Nieregularne rogi podświetlone.</p><div id="vtables"></div></div>
+    <div class="view" id="vb-story"><h2 id="vst-h">Historia</h2><p class="h2sub">Uzupełnij formy czasowników w kontekście, potem odtwórz z pamięci.</p><div class="panel" id="vstory"></div></div>
+    <div class="view" id="vb-pegs"><h2>Zakładki</h2><p class="h2sub" id="vpegs-sub"></p><div class="legend" id="vlegend"></div></div>
+  </div>
+
 
 </div>
 <div class="toast" id="toast"></div>
 
 <script>
 "use strict";
+
+/* ═══════════════════════════════════════════════════════════════
+   MODUŁ CZASOWNIKI (IT passato remoto · ES pretérito indefinido)
+   Silniki zweryfikowane: IT 276/276, ES 186/186.
+   ═══════════════════════════════════════════════════════════════ */
+const VB={};
+/* ---------- IT: passato remoto ---------- */
+VB.it=(function(){
+  const PERSONS=["io","tu","lui","noi","voi","loro"];
+  const REG={are:{io:"ai",tu:"asti",lui:"ò",noi:"ammo",voi:"aste",loro:"arono"},
+    ere:{io:"ei",tu:"esti",lui:"é",noi:"emmo",voi:"este",loro:"erono"},
+    ire:{io:"ii",tu:"isti",lui:"ì",noi:"immo",voi:"iste",loro:"irono"}};
+  const ERE_ALT={io:"etti",lui:"ette",loro:"ettero"};
+  const IRR_END={io:"i",lui:"e",loro:"ero"};
+  const IRREG={prendere:{irr:"pres"},vedere:{irr:"vid"},scrivere:{irr:"scriss"},leggere:{irr:"less"},
+    mettere:{irr:"mis"},chiedere:{irr:"chies"},chiudere:{irr:"chius"},decidere:{irr:"decis"},
+    rispondere:{irr:"rispos"},rimanere:{irr:"rimas"},venire:{irr:"venn"},tenere:{irr:"tenn"},
+    volere:{irr:"voll"},sapere:{irr:"sepp"},conoscere:{irr:"conobb"},nascere:{irr:"nacqu"},
+    vivere:{irr:"viss"},cadere:{irr:"cadd"},rompere:{irr:"rupp"},piacere:{irr:"piacqu"},
+    avere:{irr:"ebb",reg:"av"},perdere:{irr:"pers"},correre:{irr:"cors"},vincere:{irr:"vins"},
+    muovere:{irr:"moss",reg:"muov"},spegnere:{irr:"spens"},scendere:{irr:"sces"},spendere:{irr:"spes"},
+    accendere:{irr:"acces"},nascondere:{irr:"nascos"},giungere:{irr:"giuns"},piangere:{irr:"pians"},
+    dipingere:{irr:"dipins"},stringere:{irr:"strins"},fare:{irr:"fec",reg:"fac",cc:"ere"},
+    dire:{irr:"diss",reg:"dic",cc:"ere"},bere:{irr:"bevv",reg:"bev"},porre:{irr:"pos",reg:"pon"},tradurre:{irr:"traduss",reg:"traduc"}};
+  const FULL={essere:{io:"fui",tu:"fosti",lui:"fu",noi:"fummo",voi:"foste",loro:"furono"},
+    dare:{io:"diedi",tu:"desti",lui:"diede",noi:"demmo",voi:"deste",loro:"diedero"},
+    stare:{io:"stetti",tu:"stesti",lui:"stette",noi:"stemmo",voi:"steste",loro:"stettero"}};
+  const ct=inf=>inf.endsWith("are")?"are":inf.endsWith("ire")?"ire":"ere";
+  const rs=inf=>inf.replace(/(are|ere|ire)$/,"");
+  function conjugate(inf){const out={};
+    if(FULL[inf]){PERSONS.forEach(p=>out[p]={form:FULL[inf][p]});out.__kind="full";return out;}
+    const t=ct(inf),r=rs(inf);
+    if(IRREG[inf]){const{irr,reg,cc}=IRREG[inf];const st=reg||r,co=cc||t;
+      out.io={form:irr+IRR_END.io};out.lui={form:irr+IRR_END.lui};out.loro={form:irr+IRR_END.loro};
+      out.tu={form:st+REG[co].tu};out.noi={form:st+REG[co].noi};out.voi={form:st+REG[co].voi};out.__kind="123";return out;}
+    PERSONS.forEach(p=>{const b={form:r+REG[t][p]};if(t==="ere"&&ERE_ALT[p])b.alt=r+ERE_ALT[p];out[p]=b;});
+    out.__kind="reg";return out;}
+  const VERBS=[["parlare","mówić"],["mangiare","jeść"],["comprare","kupować"],["trovare","znaleźć"],["credere","wierzyć"],["ricevere","otrzymać"],["dormire","spać"],["capire","rozumieć"],["finire","kończyć"],["prendere","brać"],["vedere","widzieć"],["scrivere","pisać"],["leggere","czytać"],["mettere","kłaść"],["chiedere","pytać"],["chiudere","zamykać"],["decidere","decydować"],["rispondere","odpowiadać"],["rimanere","pozostać"],["venire","przyjść"],["tenere","trzymać"],["volere","chcieć"],["sapere","wiedzieć"],["conoscere","znać"],["nascere","urodzić się"],["vivere","żyć"],["cadere","upaść"],["rompere","złamać"],["piacere","podobać się"],["avere","mieć"],["perdere","stracić"],["correre","biec"],["vincere","wygrać"],["giungere","dotrzeć"],["piangere","płakać"],["stringere","ściskać"],["fare","robić"],["dire","powiedzieć"],["bere","pić"],["porre","kłaść"],["essere","być"],["dare","dawać"],["stare","stać"]];
+  const MNEMO={ebb:{sub:"bęben",img:"ściska własny bęben (bo go MA) i wali aż huczy"},pres:{sub:"prasa",img:"wpada pod prasę i BIERZE świeżą gazetę"},vid:{sub:"widzi",img:"przeciera oczy i WIDZI ostro (vidi=„widzi”!)"},scriss:{sub:"skrzypce",img:"PISZE smyczkiem po skrzypcach"},less:{sub:"leszcz",img:"CZYTA gazetę owiniętą wokół leszcza"},mis:{sub:"misie",img:"KŁADZIE rządkiem pluszowe misie"},chies:{sub:"kiesa",img:"PYTA o drogę, brzęcząc kiesą"},chius:{sub:"kciuk",img:"ZAMYKA drzwi, przytrzaskując kciuk"},decis:{sub:"decyzja",img:"podejmuje DECYZJĘ (decisi=decyzja!)"},rimas:{sub:"remis",img:"ZOSTAJE sam po remisie"},venn:{sub:"wanna",img:"PRZYCHODZI, płynąc w wannie"},tenn:{sub:"tenis",img:"TRZYMA rakietę tenisową, nie oddaje"},voll:{sub:"woły",img:"tak CHCE, że ciągną go dwa woły"},sepp:{sub:"sępy",img:"WIE wszystko od szepczących sępów"},viss:{sub:"wisi",img:"ŻYJE, choć WISI jak nietoperz"},cadd:{sub:"kadzie",img:"UPADA do wielkiej kadzi"},rupp:{sub:"rupieć",img:"ŁAMIE rupieć z trzaskiem"},pers:{sub:"pers",img:"TRACI perskiego kota"},cors:{sub:"kurs",img:"BIEGNIE przez wykres kursu"},giuns:{sub:"dżungla",img:"DOCIERA przez dżunglę"},pians:{sub:"pianista",img:"PŁACZE jak pianista nad klawiaturą"},strins:{sub:"stringi",img:"ŚCISKA, aż zostają stringi"},fec:{sub:"faceci",img:"ROBI robotę za trzech — twardzi faceci"},diss:{sub:"dysza",img:"MÓWI, aż bije z ust dysza pary"},pos:{sub:"pozy",img:"KŁADZIE się w dziwaczne pozy"},fui:{sub:"fujara",img:"BYŁ fujarą, zanim się ogarnął"},diedi:{sub:"dziadek",img:"dziadek (died‑ ~ dziad‑) DAJE wnukom prezenty"},stetti:{sub:"stetoskop",img:"STOI w kolejce ze stetoskopem"}};
+  const PERSON_PEG={io:{n:1,ic:"🕯️",peg:"świeca",pl:"ja"},tu:{n:2,ic:"🦢",peg:"łabędź",pl:"ty"},lui:{n:3,ic:"🍀",peg:"koniczyna",pl:"on/ona"},noi:{n:4,ic:"⛵",peg:"żagiel",pl:"my"},voi:{n:5,ic:"🖐️",peg:"dłoń",pl:"wy"},loro:{n:6,ic:"🎲",peg:"kostka",pl:"oni"}};
+  const kindOf=inf=>FULL[inf]?"full":IRREG[inf]?"123":"reg";
+  return {id:"it",name:"Passato remoto",sysSub:"Regularne = 3 zestawy końcówek. „Nieregularne” prawie zawsze idą wzorem 1-3-3: dzikie tylko io/lui/loro.",
+    PERSONS,REG,PERSON_PEG,VERBS,MNEMO,IRREG,FULL,conjugate,kindOf,ct,rs,IRR_END,
+    stemOf:inf=>IRREG[inf]?IRREG[inf].irr:null,
+    demo133:"prendere"};
+})();
+/* ---------- ES: pretérito indefinido ---------- */
+VB.es=(function(){
+  const PERSONS=["yo","tu","el","nos","vos","ellos"];
+  const REG={ar:{yo:"é",tu:"aste",el:"ó",nos:"amos",vos:"asteis",ellos:"aron"},
+    er:{yo:"í",tu:"iste",el:"ió",nos:"imos",vos:"isteis",ellos:"ieron"},
+    ir:{yo:"í",tu:"iste",el:"ió",nos:"imos",vos:"isteis",ellos:"ieron"}};
+  const STRONG_END={yo:"e",tu:"iste",el:"o",nos:"imos",vos:"isteis",ellos:"ieron"};
+  const ct=inf=>inf.endsWith("ar")?"ar":inf.endsWith("er")?"er":"ir";
+  const rs=inf=>inf.slice(0,-2);
+  const STRONG={tener:"tuv",estar:"estuv",andar:"anduv",poder:"pud",poner:"pus",saber:"sup",caber:"cup",haber:"hub",hacer:"hic",querer:"quis",venir:"vin",decir:{s:"dij",j:1},traer:{s:"traj",j:1},conducir:{s:"conduj",j:1},traducir:{s:"traduj",j:1}};
+  const IRSC={pedir:["e","i"],servir:["e","i"],seguir:["e","i"],sentir:["e","i"],preferir:["e","i"],repetir:["e","i"],vestir:["e","i"],dormir:["o","u"],morir:["o","u"]};
+  const FULL={ser:{yo:"fui",tu:"fuiste",el:"fue",nos:"fuimos",vos:"fuisteis",ellos:"fueron"},ir:{yo:"fui",tu:"fuiste",el:"fue",nos:"fuimos",vos:"fuisteis",ellos:"fueron"},dar:{yo:"di",tu:"diste",el:"dio",nos:"dimos",vos:"disteis",ellos:"dieron"},ver:{yo:"vi",tu:"viste",el:"vio",nos:"vimos",vos:"visteis",ellos:"vieron"}};
+  function spellYoAr(s){if(s.endsWith("c"))return s.slice(0,-1)+"qu";if(s.endsWith("g"))return s.slice(0,-1)+"gu";if(s.endsWith("z"))return s.slice(0,-1)+"c";return s;}
+  const VY=/[aeiou]$/, SV=/[aeo]$/;
+  function conjugate(inf){const out={};
+    if(FULL[inf]){PERSONS.forEach(p=>out[p]={form:FULL[inf][p]});out.__kind="full";return out;}
+    const t=ct(inf),s=rs(inf);
+    if(STRONG[inf]){const cfg=STRONG[inf];const st=typeof cfg==="string"?cfg:cfg.s;const j=typeof cfg==="object"&&cfg.j;
+      PERSONS.forEach(p=>{let e=STRONG_END[p];if(j&&p==="ellos")e="eron";let f=st+e;if(inf==="hacer"&&p==="el")f="hizo";out[p]={form:f};});
+      out.__kind="strong";return out;}
+    if(t==="ir"&&IRSC[inf]){const[fr,to]=IRSC[inf];const i=s.lastIndexOf(fr);const s3=i>=0?s.slice(0,i)+to+s.slice(i+1):s;
+      PERSONS.forEach(p=>{const u=(p==="el"||p==="ellos")?s3:s;out[p]={form:u+REG.ir[p]};});out.__kind="stem";return out;}
+    PERSONS.forEach(p=>{let stem=s,e=REG[t][p];
+      if(t==="ar"&&p==="yo")stem=spellYoAr(s);
+      if((t==="er"||t==="ir")&&VY.test(s)&&(p==="el"||p==="ellos"))e=p==="el"?"yó":"yeron";
+      else if((t==="er"||t==="ir")&&SV.test(s)&&(p==="tu"||p==="nos"||p==="vos"))e="í"+e.slice(1);
+      out[p]={form:stem+e};});
+    out.__kind="reg";return out;}
+  const VERBS=[["hablar","mówić"],["comprar","kupować"],["trabajar","pracować"],["comer","jeść"],["beber","pić"],["vivir","żyć"],["escribir","pisać"],["buscar","szukać"],["llegar","przybyć"],["empezar","zaczynać"],["leer","czytać"],["tener","mieć"],["estar","być"],["andar","chodzić"],["poder","móc"],["poner","kłaść"],["saber","wiedzieć"],["haber","mieć (posił.)"],["hacer","robić"],["querer","chcieć"],["venir","przyjść"],["decir","powiedzieć"],["traer","przynieść"],["conducir","prowadzić"],["pedir","prosić"],["servir","służyć"],["sentir","czuć"],["dormir","spać"],["morir","umrzeć"],["preferir","woleć"],["ser","być"],["ir","iść"],["dar","dawać"],["ver","widzieć"]];
+  const MNEMO={tuv:{sub:"tuba",img:"MA wielką tubę i w nią dmie (tuve~tuba)"},estuv:{sub:"stuka",img:"stoi/JEST i STUKA laską (estuve~e-stuka)"},pud:{sub:"pudło",img:"MÓGŁ, więc podniósł całe pudło"},pus:{sub:"puszka",img:"KŁADZIE pustą puszkę na półce"},sup:{sub:"zupa",img:"WIEDZIAŁ, że zupa się przypali"},hub:{sub:"huba",img:"BYŁO (haber) grzyby-huby na drzewie"},hic:{sub:"hik",img:"ZROBIŁ czkawkę: hik! (hice~hik)"},quis:{sub:"kwas",img:"CHCIAŁ napić się kwasu chlebowego"},vin:{sub:"wino",img:"PRZYSZEDŁ z butelką wina (vino=wino!)"},dij:{sub:"dziki",img:"POWIEDZIAŁ, że biegną dziki (dije~dzi-)"},traj:{sub:"trajkot",img:"PRZYNIÓSŁ trajkoczącą maszynę"},conduj:{sub:"kondukt",img:"PROWADZIŁ żałobny kondukt"},fui:{sub:"fujarka",img:"BYŁ/POSZEDŁ, grając na fujarce"},vi:{sub:"widelec",img:"WIDZIAŁ wielki widelec (vi ~ wi‑)"}};
+  const PERSON_PEG={yo:{n:1,ic:"🕯️",peg:"świeca",pl:"ja"},tu:{n:2,ic:"🦢",peg:"łabędź",pl:"ty"},el:{n:3,ic:"🍀",peg:"koniczyna",pl:"on/ona"},nos:{n:4,ic:"⛵",peg:"żagiel",pl:"my"},vos:{n:5,ic:"🖐️",peg:"dłoń",pl:"wy"},ellos:{n:6,ic:"🎲",peg:"kostka",pl:"oni"}};
+  const kindOf=inf=>FULL[inf]?"full":(STRONG[inf]||IRSC[inf])?"123":"reg";
+  return {id:"es",name:"Pretérito indefinido",sysSub:"Regularne = 2 zestawy końcówek (-ar / -er=-ir). „Pretéritos fuertes” to nieregularny temat + STAŁE końcówki (-e/-iste/-o/-imos/-isteis/-ieron), nieakcentowane. To ten sam pomysł co włoskie 1-3-3.",
+    PERSONS,REG,PERSON_PEG,VERBS,MNEMO,STRONG,FULL,IRSC,conjugate,kindOf,ct,rs,STRONG_END,
+    stemOf:inf=>{const c=STRONG[inf];return c?(typeof c==="string"?c:c.s):null;},
+    demo133:"tener"};
+})();
+
+/* ---------- WSPÓLNY SILNIK DRYLU (IT/ES) ---------- */
+let vbCur=null, vbLang=null, vbAnswered=false, vbStreak=0, vbScope="all", vbRecent=[], vbDiff="med";
+let vbConjSel=new Set(), vbPersonSel=new Set(), vbVerbSel="all", vbPegHint=false;
+function vbConjList(L){return L.id==="it"?["are","ere","ire"]:["ar","er","ir"];}
+function vbResetFilters(L){ vbConjSel=new Set(vbConjList(L)); vbPersonSel=new Set(L.PERSONS); vbVerbSel="all"; vbScope="all"; }
+const vbStats=(()=>{try{return JSON.parse(localStorage.getItem("vb_stats")||"{}");}catch(e){return{};}})();
+function vbSaveStats(){try{localStorage.setItem("vb_stats",JSON.stringify(vbStats));}catch(e){}}
+function vbStatKey(id,inf,per){return id+"|"+inf+"|"+per;}
+const VB_STORIES={
+ it:[
+  {title:"La sera del libro", pl:"Wieczór z książką",
+   plFull:"Tamtego wieczoru wszedłem do domu i zobaczyłem światło. On wziął książkę, przeczytał ją i nic nie powiedział. Zostaliśmy w ciszy, dopóki oni nie przyszli.",
+   seg:[{t:"Quella sera "},{s:["io","entrare","wejść"]},{t:" in casa e "},{s:["io","vedere","zobaczyć"]},
+    {t:" una luce. Lui "},{s:["lui","prendere","wziąć"]},{t:" il libro, lo "},{s:["lui","leggere","przeczytać"]},
+    {t:" e non "},{s:["lui","dire","powiedzieć"]},{t:" niente. Noi "},{s:["noi","rimanere","zostać"]},
+    {t:" in silenzio finché loro "},{s:["loro","venire","przyjść"]},{t:"."}]}
+ ],
+ es:[
+  {title:"Aquella noche", pl:"Tamtej nocy",
+   plFull:"Tamtej nocy przyszedłem późno i zrobiłem kolację. Ona była głodna, poprosiła o zupę i zjadła ją. Byliśmy zadowoleni i poszliśmy spać.",
+   seg:[{t:"Aquella noche yo "},{s:["yo","llegar","przybyć"]},{t:" tarde y "},{s:["yo","hacer","zrobić"]},
+    {t:" la cena. Ella "},{s:["el","tener","mieć"]},{t:" hambre, "},{s:["el","pedir","poprosić"]},
+    {t:" sopa y la "},{s:["el","comer","zjeść"]},{t:". Nosotros "},{s:["nos","estar","być"]},
+    {t:" contentos y "},{s:["nos","ir","pójść"]},{t:" a dormir."}]}
+ ]
+};
+let VST=null;
+const DIFF_TIP={easy:"Łatwy: znaczenie i scena-podpowiedź widoczne od razu.",med:"Średni: znaczenie widoczne, scena dopiero po odpowiedzi.",hard:"Trudny: bez podpowiedzi, bez sceny (możesz ją odsłonić)."};
+function vbNorm(s){return s.trim().toLowerCase().replace(/['`´]/g,"").replace(/[àá]/g,"a").replace(/[èé]/g,"e").replace(/[ìí]/g,"i").replace(/[òó]/g,"o").replace(/[ùú]/g,"u");}
+function vbGloss(L,inf){return Object.fromEntries(L.VERBS)[inf]||"";}
+function vbPool(L){return L.VERBS.map(v=>v[0]).filter(inf=>{
+  const k=L.kindOf(inf);
+  if(!(vbScope==="all"||(vbScope==="reg"&&k==="reg")||(vbScope==="irr"&&k!=="reg"))) return false;
+  if(vbConjSel.size && !vbConjSel.has(L.ct(inf))) return false;
+  if(vbVerbSel!=="all" && inf!==vbVerbSel) return false;
+  return true;
+});}
+function vbPersonPool(L){ const a=L.PERSONS.filter(p=>vbPersonSel.has(p)); return a.length?a:L.PERSONS; }
+function vbSrsIds(L){ const ids=[]; for(const inf of vbPool(L)) for(const p of vbPersonPool(L)) ids.push(L.id+"|"+inf+"|"+p); return ids; }
+function vbNext(){
+  const L=vbLang;
+  if(vbScope==="srs"){
+    const ids=vbSrsIds(L); if(!ids.length){document.getElementById("vqcard").innerHTML=`<div style="padding:30px;text-align:center;color:var(--muted)">Brak form dla tych filtrów.</div>`;return;}
+    const [,inf,per]=srsPick(ids).split("|");
+    const c=L.conjugate(inf);
+    vbCur={inf,per,c,form:c[per].form,alt:c[per].alt,kind:c.__kind};vbAnswered=false;vbDraw();
+    return;
+  }
+  const ps=vbPool(L); const persons=vbPersonPool(L);
+  if(!ps.length){document.getElementById("vqcard").innerHTML=`<div style="padding:30px;text-align:center;color:var(--muted)">Brak czasowników dla tych filtrów. Poluzuj wybór.</div>`;return;}
+  let inf,per,key,t=0;
+  do{inf=ps[Math.floor(Math.random()*ps.length)];per=persons[Math.floor(Math.random()*persons.length)];key=inf+"|"+per;t++;}while(vbRecent.includes(key)&&t<12);
+  vbRecent.push(key);if(vbRecent.length>6)vbRecent.shift();
+  const c=L.conjugate(inf);
+  vbCur={inf,per,c,form:c[per].form,alt:c[per].alt,kind:c.__kind};vbAnswered=false;vbDraw();
+}
+function vbDraw(){
+  const L=vbLang,{inf,per,kind}=vbCur,pp=L.PERSON_PEG[per];
+  const regForm=vbIsRegEnding(L,inf,per,kind);
+  const tag = regForm
+    ? (kind!=="reg" ? `<span class="vq-tag reg">regularny róg</span>` : `<span class="vq-tag reg">regularny</span>`)
+    : `<span class="vq-tag irr">nieregularny</span>`;
+  const showGloss = vbDiff!=="hard";
+  const glossHTML = showGloss?`<div class="vq-gloss">${vbGloss(L,inf)}</div>`:"";
+  const wantPeg = vbPegHint || vbDiff==="easy";
+  const helpHTML = wantPeg?`<div class="vpeg-hint" id="vhint">${vbPegHintHTML()}</div>`:`<div class="vhint" id="vhint"></div>`;
+  document.getElementById("vqcard").innerHTML=`
+    <div class="ctx" style="font-family:'Space Mono',monospace;font-size:11.5px;letter-spacing:.06em;color:var(--gold);text-transform:uppercase;margin-bottom:6px">${L.name} · ${L.ct(inf)} ${tag}</div>
+    <div class="vq-verb">${inf}${speakBtn(inf, L.id==="it"?"it-IT":"es-ES")}</div>${glossHTML}
+    <div class="vq-person"><span class="pn">${pp.ic} ${pp.n}</span> ${per} <span style="color:var(--muted)">(${pp.pl})</span></div>
+    ${helpHTML}
+    <div><input class="vin" id="vin" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="forma…"></div>
+    <div class="verdict" id="vverdict"></div>
+    <div class="nextrow"><button class="btn primary" id="vcheck">Sprawdź (Enter)</button></div>`;
+  const vin=document.getElementById("vin");
+  vin.addEventListener("keydown",e=>{if(e.key==="Enter"){e.preventDefault();vbAnswered?vbNext():vbCheck();}});
+  document.getElementById("vcheck").addEventListener("click",()=>vbAnswered?vbNext():vbCheck());
+  vin.focus();
+}
+function vbCheck(){
+  vbAnswered=true;const L=vbLang,vin=document.getElementById("vin");
+  const acc=[vbCur.form];if(vbCur.alt)acc.push(vbCur.alt);
+  const ok=acc.map(vbNorm).includes(vbNorm(vin.value));
+  vin.disabled=true;vin.classList.add(ok?"ok":"bad");
+  vbStreak=ok?vbStreak+1:0;document.getElementById("vs-streak").textContent=vbStreak;
+  const sk=vbStatKey(L.id,vbCur.inf,vbCur.per); const s=vbStats[sk]||(vbStats[sk]={t:0,e:0});
+  s.t++; if(!ok)s.e++; vbSaveStats();
+  if(vbScope==="srs") srsUpdate(L.id+"|"+vbCur.inf+"|"+vbCur.per, ok);
+  const v=document.getElementById("vverdict");v.classList.add("on");v.style.display="block";
+  const altT=vbCur.alt?` <span style="color:var(--muted)">(lub ${vbCur.alt})</span>`:"";
+  const sceneBlock = (vbDiff==="hard" && ok)?"":vbScene();
+  v.innerHTML=`<div class="head ${ok?"ok":"bad"}" style="font-family:'Fraunces',serif;font-size:20px;font-weight:600;color:var(--${ok?"ok":"bad"})">${ok?"Bravo!":"Nie — zapamiętaj:"}</div>
+    <div class="full" style="font-family:'Space Mono',monospace;font-size:18px;margin-top:4px"><b>${vbCur.form}</b>${altT}${speakBtn(vbCur.form, L.id==="it"?"it-IT":"es-ES")}</div>${sceneBlock}`;
+  document.getElementById("vcheck").textContent="Następna → (Enter)";
+}
+function vbSceneText(){ // krótka podpowiedź do poziomu Łatwy (bez ujawniania formy)
+  const L=vbLang,{inf,kind}=vbCur;
+  if(kind==="reg") return "Regularny — dołóż końcówkę z tabeli.";
+  const st=L.stemOf(inf),m=st?L.MNEMO[st]:(L.FULL[inf]?L.MNEMO[L.FULL[inf][L.PERSONS[0]]]:null);
+  return m?("Nieregularny — słowo-klucz: „"+m.sub+"”."):"Nieregularny — sprawdź w Tabelach.";
+}
+const END_HINT={
+  it:{io:{ic:"🗯️",lb:"‑i krzyk"},tu:{ic:"✨",lb:"prestiżowy"},lui:{ic:"❗",lb:"akcent!"},noi:{ic:"🎯",lb:"amunicja"},voi:{ic:"🥩",lb:"stek"},loro:{ic:"🐦",lb:"wrony"}},
+  es:{yo:{ic:"❗",lb:"akcent"},tu:{ic:"🥩",lb:"stek"},el:{ic:"❗",lb:"akcent"},nos:{ic:"🍮",lb:"mus"},vos:{ic:"👵",lb:"steis"},ellos:{ic:"🐦",lb:"wrony"}}
+};
+function vbIsRegEnding(L,inf,per,kind){
+  if(kind==="reg") return true;
+  if(L.id==="it" && kind==="123" && !["io","lui","loro"].includes(per)) return true;
+  if(L.id==="es" && kind==="stem" && per!=="el" && per!=="ellos") return true;
+  return false;
+}
+function vbPegHintHTML(){ // pasek pegów jak zakładki (bez ujawniania formy) — zgodny ze sceną
+  const L=vbLang,{inf,per,kind}=vbCur, pp=L.PERSON_PEG[per], cp=CONJ_PEG[L.ct(inf)]||{ic:"·",sub:L.ct(inf)};
+  const reg=vbIsRegEnding(L,inf,per,kind);
+  const nodes=[`<div class="node"><span class="ic">${pp.ic}</span><span class="lb">${pp.n} ${per}</span></div>`,
+    `<div class="node"><span class="ic">${cp.ic}</span><span class="lb">${cp.sub} (${L.ct(inf)})</span></div>`];
+  if(reg){
+    const e=END_HINT[L.id][per];
+    nodes.push(`<div class="node"><span class="ic">${e.ic}</span><span class="lb">${e.lb}</span></div>`);
+  } else if(L.id==="es" && kind==="stem"){
+    const [fr,to]=L.IRSC[inf];
+    nodes.push(`<div class="node"><span class="ic">🔀</span><span class="lb">${fr}→${to}</span></div>`);
+  } else {
+    const st=L.stemOf(inf),m=st?L.MNEMO[st]:(L.FULL[inf]?L.MNEMO[L.FULL[inf][L.PERSONS[0]]]:null);
+    if(m) nodes.push(`<div class="node"><span class="ic">🔑</span><span class="lb">${m.sub}</span></div>`);
+    else nodes.push(`<div class="node"><span class="ic">🧩</span><span class="lb">nieregularny</span></div>`);
+  }
+  nodes.push(`<div class="node fin"><span class="ic">❓</span><span class="lb">forma?</span></div>`);
+  return `<div class="cap" style="font-family:'Space Mono',monospace;font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--gold);margin-bottom:6px">podpowiedź zakładkowa</div><div class="strip">${nodes.join('<div class="arrow">→</div>')}</div>`;
+}
+function vbScene(){ return vbSceneFor(vbLang, vbCur.inf, vbCur.per); }
+function vbBox(cap,body){ return `<div class="vscene"><div class="cap">${cap}</div>${body}</div>`; }
+/* pegi koniugacji (temat) + końcówek (osoba) — system Fifiego: are=browarek, ere=serek, ire=gira */
+const CONJ_PEG={
+  are:{ic:"🍺",sub:"browarek",v:"a",acc:"ò"}, ere:{ic:"🧀",sub:"serek",v:"e",acc:"é"}, ire:{ic:"🦶",sub:"gira",v:"i",acc:"ì"},
+  ar:{ic:"🍺",sub:"browarek",v:"a"}, er:{ic:"🧀",sub:"serek",v:"e"}, ir:{ic:"🦶",sub:"gira",v:"i"}
+};
+function itEndScene(per,cp,form){
+  const P=`${cp.ic} <b>${cp.sub}</b>`;
+  const M={
+    io:`🕯️ Świeca (io) — trzymasz ${P} (‑${cp.v}re) i parzysz się: krótki krzyk „${cp.v}i”. → <b>${form}</b>`,
+    tu:`🦢 Łabędź (tu) zajada ${P}, złoty i lśniący w błysku fleszy — bo <b>prestiżowy</b> (‑${cp.v}sti). → <b>${form}</b>`,
+    lui:`🍀 Koniczyna (on) gryzie ${P} tak mocno, że krzyczy z akcentem <b>${cp.acc}!</b> (‑${cp.acc}). → <b>${form}</b>`,
+    noi:`⛵ Żaglówką (my) płynie rodzina z ${P}, cała w broniach — łuski, kosze <b>amunicji</b> (AMMO, ‑${cp.v}mmo). → <b>${form}</b>`,
+    voi:`🖐️ Dłoń (wy) w jednym ręku ${P}, w drugim wielki <b>stek</b> (‑${cp.v}ste). → <b>${form}</b>`,
+    loro:`🎲 Kostka (oni) — nad nimi kraczą <b>wrony</b> (‑${cp.v}rono), a oni ciskają ${P}. → <b>${form}</b>`
+  };
+  return M[per];
+}
+function esEndScene(per,cp,form,ct){
+  const P=`${cp.ic} <b>${cp.sub}</b>`;
+  const accYo=ct==="ar"?"é":"í", accEl=ct==="ar"?"ó":"ió";
+  const M={
+    yo:`🕯️ Świeca (yo) — trzymasz ${P} (‑${cp.v}r) i krzyczysz z akcentem <b>${accYo}</b>. → <b>${form}</b>`,
+    tu:`🦢 Łabędź (tu) zajada ${P} i wielki <b>stek</b> (‑ste). → <b>${form}</b>`,
+    el:`🍀 Koniczyna (on) gryzie ${P}, krzyczy z akcentem <b>${accEl}</b>. → <b>${form}</b>`,
+    nos:`⛵ Żaglówką (my) płyniemy z ${P} i deserowym <b>musem</b> (‑mos). → <b>${form}</b>`,
+    vos:`🖐️ Dłoń (wy) trzyma ${P}, a teściowa wrzeszczy <b>„steis!”</b> (‑steis). → <b>${form}</b>`,
+    ellos:`🎲 Kostka (oni) — nad nimi kraczą <b>wrony</b> (‑ron), a oni ciskają ${P}. → <b>${form}</b>`
+  };
+  return M[per];
+}
+function regEndScene(L,inf,per,form){
+  const ct=L.ct(inf), cp=CONJ_PEG[ct];
+  const body = L.id==="it" ? itEndScene(per,cp,form) : esEndScene(per,cp,form,ct);
+  return vbBox("praca wyobraźni · "+ct,
+    `${body}<div style="margin-top:8px;font-size:12.5px;color:var(--muted)">Temat znasz z bezokolicznika (${L.rs(inf)}‑) — scena blokuje samą <b>końcówkę</b>: osoba + koniugacja (${cp.sub}).</div>`);
+}
+function vbSceneFor(L,inf,per){
+  const c=L.conjugate(inf), form=c[per].form, kind=c.__kind;
+  const meaning=(vbGloss(L,inf)||"").split("/")[0];
+  const P=L.PERSONS;
+
+  // ── REGULARNE — praca wyobraźni na końcówce ──
+  if(kind==="reg") return regEndScene(L,inf,per,form);
+  // ── IT: regularny róg wzoru 1-3-3 (tu/noi/voi) — też regularna końcówka ──
+  if(L.id==="it" && kind==="123" && !["io","lui","loro"].includes(per)){
+    return regEndScene(L,inf,per,form).replace("praca wyobraźni","regularny róg 1-3-3");
+  }
+  // ── ES: zmiana samogłoski poza 3. os = regularna końcówka ──
+  if(L.id==="es" && kind==="stem" && per!=="el" && per!=="ellos") return regEndScene(L,inf,per,form);
+  // ── ES: zmiana samogłoski w 3. os (él/ellos) ──
+  if(L.id==="es" && kind==="stem"){
+    const [fr,to]=L.IRSC[inf];
+    return vbBox("3. osoba: "+fr+"→"+to,
+      `«${meaning}» — w él/ellos samogłoska tematu <b>${fr}→${to}</b>: <b>${form}</b>. Dopiero „on/oni" przełącza dźwięk. (${c.el.form} / ${c.ellos.form})`);
+  }
+  // ── słowo-klucz (IT dzikie rogi + full, ES strong + full) ──
+  const st=L.stemOf(inf), m=st?L.MNEMO[st]:(L.FULL[inf]?L.MNEMO[L.FULL[inf][P[0]]]:null);
+
+  if(L.id==="es" && kind==="strong"){
+    const stem=L.STRONG[inf]; const s=typeof stem==="string"?stem:stem.s;
+    const key = m?`Temat <b>${s}‑</b> brzmi jak <span class="hl">${m.sub}</span>: ${m.img}. `:`Temat nieregularny <b>${s}‑</b>. `;
+    return vbBox("pretérito fuerte",
+      `«${meaning}». ${key}Sztuczka: <b>ten sam temat we wszystkich osobach</b> + STAŁE końcówki (nieakcentowane) <b>‑e ‑iste ‑o ‑imos ‑isteis ‑ieron</b>. Stąd <b>${form}</b>.`);
+  }
+  if(L.id==="es" && kind==="full"){
+    const all=P.map(p=>c[p].form).join(" · ");
+    const hook = m?`Zaczep na io: <span class="hl">${m.sub}</span> (${m.img}). `:"";
+    return vbBox("w pełni nieregularny",
+      `«${meaning}» — wykuj cały rząd: <b>${all}</b>. ${hook}${inf==="ser"||inf==="ir"?"<b>ser i ir mają identyczne formy</b> — jeden zestaw na dwa czasowniki.":""}`);
+  }
+  // IT dzikie rogi (io/lui/loro) i full
+  if(L.id==="it" && kind==="full"){
+    const all=P.map(p=>c[p].form).join(" · ");
+    const hook = m?`Zaczep: <span class="hl">${m.sub}</span> — ${m.img}. `:"";
+    return vbBox("w pełni nieregularny",
+      `«${meaning}» — wykuj rytm: <b>${all}</b>. ${hook}`);
+  }
+  // IT 1-3-3 dziki róg
+  if(m){
+    const wildForms=`io ${c.io.form} · lui ${c.lui.form} · loro ${c.loro.form}`;
+    return vbBox("słowo-klucz: "+m.sub,
+      `«${meaning}» → nieregularny temat brzmi jak <span class="hl">${m.sub}</span>. Wyobraź: ${m.img} — słyszysz w tym <b>${form}</b>.
+       <div style="margin-top:8px;font-size:13px;color:var(--muted)">Uczysz się <b>io</b>, resztę wyprowadzasz mechanicznie: <b>${wildForms}</b> (lui = io bez ‑i +‑e, loro = +‑ero).</div>`);
+  }
+  const wildForms=`io ${c.io.form} · lui ${c.lui.form} · loro ${c.loro.form}`;
+  return vbBox("forma nieregularna",
+    `«${meaning}». Słowo-klucz do dopisania (TSZ/ŁMS). Nieregularne: <b>${wildForms}</b>; tu/noi/voi regularne.`);
+}
+/* HISTORIA czasownikowa (uzupełnianie form) */
+function vbStoryIntro(){
+  const L=vbLang, list=VB_STORIES[L.id]||[];
+  document.getElementById("vst-h").textContent="Historia — "+L.name;
+  const el=document.getElementById("vstory");
+  if(!list.length){el.innerHTML="<p>Brak historii dla tego modułu.</p>";return;}
+  el.innerHTML=`<div class="st-pick">${list.map((s,i)=>`<div class="st-card" data-i="${i}"><div class="t">${s.title}</div><div class="d">${s.pl}</div></div>`).join("")}</div>`;
+  el.querySelectorAll(".st-card").forEach(c=>c.addEventListener("click",()=>vbStoryStart(+c.dataset.i)));
+}
+function vbStoryStart(i){
+  const L=vbLang, story=VB_STORIES[L.id][i];
+  VST={story, slots:[]};
+  let html="", si=0;
+  for(const seg of story.seg){
+    if(seg.t){ html+=seg.t; }
+    else { const [per,inf,gl]=seg.s;
+      html+=`<span class="vst-slot tip" data-tip="${inf} → „${gl}”"><input class="tin" id="vs${si}" autocomplete="off" autocapitalize="off" spellcheck="false"><span class="vst-inf">(${inf})</span></span>`;
+      VST.slots.push({per,inf,id:"vs"+si}); si++; }
+  }
+  const fullTip = story.plFull ? `<div class="st-fulltip">🔍 najedź: całe tłumaczenie<span class="st-fulltxt">${story.plFull}</span></div>` : "";
+  document.getElementById("vstory").innerHTML=`
+    <div class="st-phase" style="font-family:'Space Mono',monospace;font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--gold);margin-bottom:8px">Uzupełnij formy (${L.name}) · najedź na lukę = tłumaczenie</div>
+    <h3 class="st-title" style="font-family:'Fraunces',serif;font-size:20px;margin:0 0 12px">${story.title}</h3>
+    <div class="vst-body">${html}</div>
+    ${fullTip}
+    <div class="nextrow"><button class="btn primary" id="vst-check">Sprawdź</button></div>`;
+  document.querySelectorAll("#vstory input.tin").forEach(inp=>inp.addEventListener("keydown",e=>{if(e.key==="Enter"){e.preventDefault();vbStoryCheck();}}));
+  document.getElementById("vst-check").addEventListener("click",vbStoryCheck);
+  const f=document.querySelector("#vstory input.tin"); if(f)f.focus();
+}
+function vbStoryCheck(){
+  const L=vbLang; let ok=0;
+  for(const sl of VST.slots){
+    const inp=document.getElementById(sl.id); const correct=L.conjugate(sl.inf)[sl.per].form;
+    const good=vbNorm(inp.value)===vbNorm(correct); inp.disabled=true; inp.classList.add(good?"ok":"bad");
+    if(good)ok++; else{const fx=document.createElement("span");fx.className="vst-fix";fx.textContent=correct;inp.parentNode.insertBefore(fx,inp.nextSibling.nextSibling);}
+  }
+  const pct=Math.round(100*ok/VST.slots.length);
+  document.getElementById("vst-check").outerHTML=`
+    <div style="text-align:center;padding:14px 0"><div style="font-family:'Fraunces',serif;font-size:42px;font-weight:600;color:var(--${pct>=90?"ok":"bad"})">${pct}%</div>
+    <div style="font-family:'Space Mono',monospace;font-size:12px;color:var(--muted)">${ok}/${VST.slots.length} form</div></div>
+    <div class="nextrow"><button class="btn" id="vst-retry">Jeszcze raz</button><button class="btn" id="vst-menu">Inna historia</button></div>`;
+  document.getElementById("vst-retry").addEventListener("click",()=>vbStoryStart(VB_STORIES[L.id].indexOf(VST.story)));
+  document.getElementById("vst-menu").addEventListener("click",vbStoryIntro);
+}
+/* system / tabele / zakładki dla czasowników */
+function vbRenderSystem(){
+  const L=vbLang;document.getElementById("vsys-h").textContent="System — "+L.name;
+  document.getElementById("vsys-sub").textContent=L.sysSub;
+  const el=document.getElementById("vsystem");
+  const demo=L.conjugate(L.demo133),P=L.PERSONS;
+  const wild=L.id==="it"?["io","lui","loro"]:["yo","el","ellos"];
+  let g="";for(const p of P){const w=wild.includes(p);g+=`<div class="r ${w?"irr":"reg"}"><div class="p">${L.PERSON_PEG[p].n} ${p}</div><div class="v">${demo[p].form}</div></div>`;}
+  const nIrr=L.id==="it"?Object.keys(L.IRREG).length:Object.keys(L.STRONG).length;
+  const anchor=L.id==="it"?"io = "+demo.io.form:"yo = "+demo.yo.form;
+  el.innerHTML=`
+  <div class="rulecard" style="background:var(--card);border:1px solid var(--line);border-radius:14px;padding:18px;margin-bottom:14px">
+    <h3 style="font-family:'Fraunces',serif;font-size:18px;margin:0 0 6px">Regularne = tabela końcówek</h3>
+    <div class="scroll"><table><thead><tr><th></th>${Object.keys(L.REG).map(k=>`<th>-${k}</th>`).join("")}</tr></thead><tbody>
+    ${P.map(p=>`<tr><th>${L.PERSON_PEG[p].n} ${p}</th>${Object.keys(L.REG).map(k=>`<td><span style="color:var(--gold);font-weight:700">‑${L.REG[k][p]}</span></td>`).join("")}</tr>`).join("")}
+    </tbody></table></div>
+  </div>
+  <div class="rulecard" style="background:var(--card);border:1px solid var(--line);border-radius:14px;padding:18px;margin-bottom:14px">
+    <h3 style="font-family:'Fraunces',serif;font-size:18px;margin:0 0 6px">Nieregularne — jeden wzór (${nIrr} czasowników)</h3>
+    <p style="font-size:14px;margin:0 0 6px">Łamią się tylko w <b>${wild.join(", ")}</b>. Reszta zostaje regularna. Przykład <b>${L.demo133}</b>:</p>
+    <div class="g133">${g}</div>
+    <p style="font-size:14px;margin:6px 0 0">Uczysz się <b>jednej formy: ${anchor}</b>, resztę wyprowadzasz mechanicznie z tego samego tematu.</p>
+  </div>`;
+}
+function vbRenderTables(){
+  const L=vbLang,el=document.getElementById("vtables");el.innerHTML="";const P=L.PERSONS;
+  el.insertAdjacentHTML("beforeend",`<div class="weak-legend"><span class="sw"></span> czerwona ramka = ta forma idzie Ci poniżej 60% (min. 3 próby) · <b style="color:var(--gold)">najedź lub kliknij formę → praca wyobraźni</b></div>`);
+  const wild=L.id==="it"?["io","lui","loro"]:["yo","el","ellos"];
+  const groups=L.id==="it"?[["Regularne","reg"],["Nieregularne 1-3-3","123"],["W pełni nieregularne","full"]]:[["Regularne","reg"],["Pretéritos fuertes","strong"],["Zmiana samogłoski (-ir)","stem"],["W pełni nieregularne","full"]];
+  for(const[label,k]of groups){
+    const list=L.VERBS.map(v=>v[0]).filter(inf=>L.conjugate(inf).__kind===k);
+    if(!list.length)continue;
+    el.insertAdjacentHTML("beforeend",`<div class="tbl-head"><h3>${label}</h3></div>`);
+    let h=`<div class="scroll"><table><thead><tr><th></th>${P.map(p=>`<th>${p}</th>`).join("")}</tr></thead><tbody>`;
+    for(const inf of list){const c=L.conjugate(inf);
+      h+=`<tr><th title="${vbGloss(L,inf)}">${inf}</th>${P.map(p=>{
+        const w=(k==="123"||k==="strong"||k==="stem")&&wild.includes(p);
+        const st=vbStats[vbStatKey(L.id,inf,p)];
+        let weak=false, badge="";
+        if(st&&st.t>=3){const acc=(st.t-st.e)/st.t; if(acc<0.6){weak=true;badge=`<span class="wbadge">${Math.round(acc*100)}%</span>`;}}
+        const base=w?"background:var(--bad-bg);color:var(--bad);font-weight:700":"";
+        return `<td class="vbcell ${weak?"vweak":""}" data-inf="${inf}" data-per="${p}" style="cursor:pointer;${base}">${c[p].form}${badge}</td>`;
+      }).join("")}</tr>`;}
+    h+=`</tbody></table></div>`;el.insertAdjacentHTML("beforeend",h);
+  }
+  el.insertAdjacentHTML("beforeend",`<div id="vtable-scene" style="margin-top:16px"></div>`);
+  if(!el.__wired){
+    el.__wired=true;
+    let lastKey="";
+    const showScene=(td,scroll)=>{
+      const key=td.dataset.inf+"|"+td.dataset.per; if(key===lastKey&&!scroll)return; lastKey=key;
+      el.querySelectorAll("td.vbcell.picked").forEach(x=>x.classList.remove("picked"));
+      td.classList.add("picked");
+      document.getElementById("vtable-scene").innerHTML=vbSceneFor(vbLang,td.dataset.inf,td.dataset.per);
+      if(scroll) document.getElementById("vtable-scene").scrollIntoView({behavior:"smooth",block:"nearest"});
+    };
+    el.addEventListener("mouseover",e=>{const td=e.target.closest("td.vbcell"); if(td)showScene(td,false);});
+    el.addEventListener("click",e=>{const td=e.target.closest("td.vbcell"); if(td)showScene(td,true);});
+  }
+}
+function vbRenderPegs(){
+  const L=vbLang;document.getElementById("vpegs-sub").textContent="Pegi liczb dla osób + słowa zastępcze (TSZ/ŁMS) na nieregularne formy.";
+  document.getElementById("vlegend").innerHTML=`
+  <div class="lg"><h3>Osoby — pegi liczb</h3>${L.PERSONS.map(p=>{const x=L.PERSON_PEG[p];return `<div class="peg"><span class="ic">${x.ic}</span><span class="k">${x.n} ${p}</span><span class="d"><b>${x.peg}</b> · ${x.pl}</span></div>`;}).join("")}</div>
+  <div class="lg"><h3>Wzór nieregularny</h3><div class="peg"><span class="ic">💡</span><span class="k"></span><span class="d">Naucz się <b>1. osoby</b>, resztę wyprowadź. Tylko 3 „rogi” dzikie, reszta regularna.</span></div></div>
+  <div class="lg"><h3>Słowa-klucze</h3><div class="peg"><span class="ic">🔑</span><span class="k"></span><span class="d">Każda nieregularna forma = polskie słowo o zbliżonym brzmieniu (${L.id==="it"?"ebbe→bęben, vidi→widzi":"vino→wino, tuve→tuba"}). Hook pod TSZ/ŁMS.</span></div></div>`;
+}
+/* nawigacja modułu czasownikowego */
+document.getElementById("vnav").addEventListener("click",e=>{
+  const b=e.target.closest("button");if(!b)return;
+  document.querySelectorAll("#vnav button").forEach(x=>x.classList.remove("on"));b.classList.add("on");
+  ["drill","system","tables","story","pegs"].forEach(v=>document.getElementById("vb-"+v).classList.remove("on"));
+  document.getElementById("vb-"+b.dataset.v).classList.add("on");
+  if(b.dataset.v==="system")vbRenderSystem();
+  if(b.dataset.v==="tables")vbRenderTables();
+  if(b.dataset.v==="pegs")vbRenderPegs();
+  if(b.dataset.v==="story")vbStoryIntro();
+});
+document.getElementById("vf-scope").addEventListener("click",e=>{const b=e.target.closest("button");if(!b)return;document.querySelectorAll("#vf-scope button").forEach(x=>x.classList.remove("on"));b.classList.add("on");vbScope=b.dataset.s;vbFiltersSummary();vbNext();});
+document.getElementById("vf-diff").addEventListener("click",e=>{const b=e.target.closest("button");if(!b)return;document.querySelectorAll("#vf-diff button").forEach(x=>x.classList.remove("on"));b.classList.add("on");vbDiff=b.dataset.d;document.getElementById("vdifftip").textContent=DIFF_TIP[vbDiff];vbNext();});
+document.getElementById("vfilters-toggle").addEventListener("click",()=>{const open=document.getElementById("vfilters-body").classList.toggle("open");document.getElementById("vfilters-toggle").setAttribute("aria-expanded",open);});
+document.getElementById("vpeg-hint").addEventListener("change",e=>{vbPegHint=e.target.checked;vbDraw();});
+// dropdowny konjugacji / osoby / czasownika (checkboxy multi + select verb)
+function vbPopulateFilters(L){
+  const cm=document.getElementById("vf-conj-menu");
+  cm.innerHTML=vbConjList(L).map(c=>`<label><input type="checkbox" value="${c}" checked> ${CONJ_PEG[c].ic} ‑${c}</label>`).join("");
+  const pm=document.getElementById("vf-person-menu");
+  pm.innerHTML=L.PERSONS.map(p=>`<label><input type="checkbox" value="${p}" checked> ${L.PERSON_PEG[p].ic} ${p} (${L.PERSON_PEG[p].pl})</label>`).join("");
+  const vm=document.getElementById("vf-verb-menu");
+  vm.innerHTML=`<label><input type="radio" name="vbverb" value="all" checked> wszystkie</label>`+
+    L.VERBS.map(v=>`<label><input type="radio" name="vbverb" value="${v[0]}"> ${v[0]} <span style="color:var(--muted)">— ${v[1]}</span></label>`).join("");
+  cm.querySelectorAll("input").forEach(i=>i.addEventListener("change",()=>{vbConjSel=new Set([...cm.querySelectorAll("input:checked")].map(x=>x.value));if(!vbConjSel.size){i.checked=true;vbConjSel.add(i.value);}vbFiltersSummary();vbNext();}));
+  pm.querySelectorAll("input").forEach(i=>i.addEventListener("change",()=>{vbPersonSel=new Set([...pm.querySelectorAll("input:checked")].map(x=>x.value));if(!vbPersonSel.size){i.checked=true;vbPersonSel.add(i.value);}vbFiltersSummary();vbNext();}));
+  vm.querySelectorAll("input").forEach(i=>i.addEventListener("change",()=>{vbVerbSel=i.value;vbFiltersSummary();vbNext();}));
+}
+function vbFiltersSummary(){
+  const L=vbLang; if(!L)return;
+  const parts=[];
+  parts.push(vbScope==="all"?"wszystkie":vbScope==="reg"?"regularne":"nieregularne");
+  if(vbConjSel.size<vbConjList(L).length) parts.push([...vbConjSel].map(c=>"‑"+c).join(""));
+  if(vbPersonSel.size<L.PERSONS.length) parts.push(vbPersonSel.size+" os.");
+  if(vbVerbSel!=="all") parts.push(vbVerbSel);
+  document.getElementById("vfilters-summary").textContent="Filtry: "+parts.join(" · ");
+  // odśwież etykiety w przyciskach dropdownów
+  document.querySelector("#vf-conj .dd-btn b").textContent = vbConjSel.size<vbConjList(L).length?[...vbConjSel].join(", "):"wszystkie";
+  document.querySelector("#vf-person .dd-btn b").textContent = vbPersonSel.size<L.PERSONS.length?vbPersonSel.size+" wybrane":"wszystkie";
+  document.querySelector("#vf-verb .dd-btn b").textContent = vbVerbSel==="all"?"wszystkie":vbVerbSel;
+}
+// otwieranie/zamykanie dropdownów
+document.querySelectorAll("#vfilters-body .dd .dd-btn").forEach(btn=>{
+  btn.addEventListener("click",()=>{const dd=btn.parentNode;const open=dd.classList.toggle("open");btn.setAttribute("aria-expanded",open);
+    document.querySelectorAll("#vfilters-body .dd").forEach(o=>{if(o!==dd){o.classList.remove("open");o.querySelector(".dd-btn").setAttribute("aria-expanded","false");}});});
+});
+document.addEventListener("click",e=>{if(!e.target.closest("#vfilters-body .dd"))document.querySelectorAll("#vfilters-body .dd.open").forEach(o=>{o.classList.remove("open");o.querySelector(".dd-btn").setAttribute("aria-expanded","false");});});
+document.addEventListener("keydown",e=>{if(!document.getElementById("app-vb").offsetParent)return;if(e.code==="Space"&&vbAnswered&&e.target.tagName!=="INPUT"){e.preventDefault();vbNext();}});
+
+
+/* ============ REJESTR MODUŁÓW  (klucz: "język|czas") ============ */
+/* Dodanie nowego modułu = JEDNA linia: MODULES['xx|yy'] = VB.zz  (obiekt spełniający kontrakt VB). */
+const MODULES = {
+  'it|past': VB.it,   // Passato remoto
+  'es|past': VB.es,   // Pretérito indefinido
+};
+const LANG_META = {
+  it:{flag:'🇮🇹',name:'Włoski'},
+  es:{flag:'🇪🇸',name:'Hiszpański'},
+  fr:{flag:'🇫🇷',name:'Francuski'},
+};
+const regLangs  = ()=> [...new Set(Object.keys(MODULES).map(k=>k.split('|')[0]))];
+const regTenses = lang => Object.keys(MODULES).filter(k=>k.split('|')[0]===lang);
+
+function buildLangbar(){
+  let html = `<button data-l="de" class="on">🇩🇪 Niemiecki<span>przymiotnik</span></button>`;
+  for(const lang of regLangs()){
+    const m = LANG_META[lang] || {flag:'',name:lang};
+    html += `<button data-l="${lang}">${m.flag} ${m.name}<span>czasowniki</span></button>`;
+  }
+  document.getElementById('langbar').innerHTML = html;
+}
+function buildTensebar(lang){
+  const tb = document.getElementById('tensebar');
+  const keys = regTenses(lang);
+  tb.innerHTML = keys.map((k,i)=>`<button data-k="${k}" class="${i===0?'on':''}">${MODULES[k].name}</button>`).join('');
+  tb.style.display = keys.length ? '' : 'none';
+  return keys[0];
+}
+function showGerman(){
+  document.getElementById('app-de').style.display = '';
+  document.getElementById('app-vb').style.display = 'none';
+  document.getElementById('tensebar').style.display = 'none';
+  document.getElementById('app-title').textContent = 'Deklinator';
+  document.getElementById('app-sub').textContent = 'niemiecki · końcówki przymiotnika';
+}
+function activateModule(key){
+  const lang = key.split('|')[0];
+  document.getElementById('app-de').style.display = 'none';
+  document.getElementById('app-vb').style.display = '';
+  vbLang = MODULES[key]; vbStreak = 0; vbRecent = [];
+  vbResetFilters(vbLang);
+  document.querySelectorAll('#vf-scope button').forEach(x=>x.classList.toggle('on',x.dataset.s==='all'));
+  document.getElementById('vdifftip').textContent = DIFF_TIP[vbDiff];
+  vbPopulateFilters(vbLang); vbFiltersSummary();
+  document.querySelectorAll('#vnav button').forEach(x=>x.classList.toggle('on',x.dataset.v==='drill'));
+  ['drill','system','tables','story','pegs'].forEach(v=>document.getElementById('vb-'+v).classList.toggle('on',v==='drill'));
+  const m = LANG_META[lang] || {flag:'',name:lang};
+  document.getElementById('app-title').textContent = `${m.flag} ${vbLang.name}`;
+  document.getElementById('app-sub').textContent = `${m.name} · czasowniki`;
+  vbNext();
+}
+buildLangbar();
+document.getElementById('langbar').addEventListener('click', e=>{
+  const b = e.target.closest('button'); if(!b) return;
+  document.querySelectorAll('#langbar button').forEach(x=>x.classList.remove('on')); b.classList.add('on');
+  const l = b.dataset.l;
+  if(l==='de'){ showGerman(); return; }
+  const firstKey = buildTensebar(l);
+  if(firstKey) activateModule(firstKey);
+});
+document.getElementById('tensebar').addEventListener('click', e=>{
+  const b = e.target.closest('button'); if(!b) return;
+  document.querySelectorAll('#tensebar button').forEach(x=>x.classList.remove('on')); b.classList.add('on');
+  activateModule(b.dataset.k);
+});
+
 
 /* ================= STORAGE ================= */
 const store = {
