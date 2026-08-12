@@ -1226,11 +1226,39 @@ VB.es_pres=(function(){
     PERSONS,REG,PERSON_PEG,VERBS,MNEMO:{},FULL,conjugate,kindOf,ct,rs,stemOf:()=>null,demo133:"tener"};
 })();
 
+/* ---------- IT: futuro semplice ---------- */
+VB.it_fut=(function(){
+  const PERSONS=["io","tu","lui","noi","voi","loro"];
+  const END={io:"ò",tu:"ai",lui:"à",noi:"emo",voi:"ete",loro:"anno"};
+  const IRR={essere:"sar",avere:"avr",fare:"far",andare:"andr",venire:"verr",potere:"potr",volere:"vorr",dovere:"dovr",vedere:"vedr",rimanere:"rimarr",bere:"berr",tenere:"terr"};
+  const PERSON_PEG={io:{n:1,ic:"🕯️",peg:"świeca",pl:"ja"},tu:{n:2,ic:"🦢",peg:"łabędź",pl:"ty"},lui:{n:3,ic:"🍀",peg:"koniczyna",pl:"on/ona"},noi:{n:4,ic:"⛵",peg:"żagiel",pl:"my"},voi:{n:5,ic:"🖐️",peg:"dłoń",pl:"wy"},loro:{n:6,ic:"🎲",peg:"kostka",pl:"oni"}};
+  const REG={are:{io:"erò",tu:"erai",lui:"erà",noi:"eremo",voi:"erete",loro:"eranno"},
+    ere:{io:"erò",tu:"erai",lui:"erà",noi:"eremo",voi:"erete",loro:"eranno"},
+    ire:{io:"irò",tu:"irai",lui:"irà",noi:"iremo",voi:"irete",loro:"iranno"}};
+  function futStem(inf){
+    if(IRR[inf]) return IRR[inf];
+    const end=inf.slice(-3); let r=inf.slice(0,-3);
+    if(end==="are"){ if(/[cg]$/.test(r)) r+="h"; return r+"er"; }
+    if(end==="ere") return r+"er";
+    return r+"ir";
+  }
+  const ct=inf=>inf.endsWith("are")?"are":inf.endsWith("ire")?"ire":"ere";
+  const rs=inf=>inf.replace(/(are|ere|ire)$/,"");
+  function conjugate(inf){const out={};const st=futStem(inf);
+    PERSONS.forEach(p=>out[p]={form:st+END[p]});
+    out.__kind=IRR[inf]?"full":"reg";return out;}
+  const kindOf=inf=>IRR[inf]?"full":"reg";
+  const VERBS=[["parlare","mówić"],["credere","wierzyć"],["dormire","spać"],["cercare","szukać"],["pagare","płacić"],["essere","być"],["avere","mieć"],["fare","robić"],["andare","iść"],["venire","przyjść"],["potere","móc"],["volere","chcieć"],["dovere","musieć"],["vedere","widzieć"],["rimanere","zostać"],["bere","pić"],["tenere","trzymać"]];
+  return {id:"itfut",name:"Futuro semplice",sysSub:"Wszystkie osoby mają wspólne końcówki -ò/-ai/-à/-emo/-ete/-anno. Regularne: temat z bezokolicznika (-are/-ere→-er, -ire→-ir). Nieregularne: skrócony temat (sar-, avr-, verr-...).",
+    PERSONS,REG,PERSON_PEG,VERBS,MNEMO:{},FULL:{},conjugate,kindOf,ct,rs,stemOf:()=>null,demo133:"essere"};
+})();
+
 /* ============ REJESTR MODUŁÓW  (klucz: "język|czas") ============ */
 /* Dodanie nowego modułu = JEDNA linia: MODULES['xx|yy'] = VB.zz  (obiekt spełniający kontrakt VB). */
 const MODULES = {
   'it|past': VB.it,        // Passato remoto
   'it|pres': VB.it_pres,   // Presente
+  'it|fut':  VB.it_fut,    // Futuro semplice
   'es|past': VB.es,        // Pretérito indefinido
   'es|pres': VB.es_pres,   // Presente
 };
