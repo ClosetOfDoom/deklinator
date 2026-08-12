@@ -1273,6 +1273,42 @@ VB.es_fut=(function(){
     PERSONS,REG,PERSON_PEG,VERBS,MNEMO:{},FULL:{},conjugate,kindOf,ct,rs,stemOf:()=>null,demo133:"tener"};
 })();
 
+/* ---------- FR: présent ---------- */
+VB.fr_pres=(function(){
+  const PERSONS=["je","tu","il","nous","vous","ils"];
+  const REG={er:{je:"e",tu:"es",il:"e",nous:"ons",vous:"ez",ils:"ent"},
+    ir:{je:"is",tu:"is",il:"it",nous:"issons",vous:"issez",ils:"issent"},
+    re:{je:"s",tu:"s",il:"",nous:"ons",vous:"ez",ils:"ent"}};
+  const PERSON_PEG={je:{n:1,ic:"🕯️",peg:"świeca",pl:"ja"},tu:{n:2,ic:"🦢",peg:"łabędź",pl:"ty"},il:{n:3,ic:"🍀",peg:"koniczyna",pl:"on/ona"},nous:{n:4,ic:"⛵",peg:"żagiel",pl:"my"},vous:{n:5,ic:"🖐️",peg:"dłoń",pl:"wy"},ils:{n:6,ic:"🎲",peg:"kostka",pl:"oni"}};
+  const FULL={
+    "être":{je:"suis",tu:"es",il:"est",nous:"sommes",vous:"êtes",ils:"sont"},
+    avoir:{je:"ai",tu:"as",il:"a",nous:"avons",vous:"avez",ils:"ont"},
+    aller:{je:"vais",tu:"vas",il:"va",nous:"allons",vous:"allez",ils:"vont"},
+    faire:{je:"fais",tu:"fais",il:"fait",nous:"faisons",vous:"faites",ils:"font"},
+    dire:{je:"dis",tu:"dis",il:"dit",nous:"disons",vous:"dites",ils:"disent"},
+    pouvoir:{je:"peux",tu:"peux",il:"peut",nous:"pouvons",vous:"pouvez",ils:"peuvent"},
+    vouloir:{je:"veux",tu:"veux",il:"veut",nous:"voulons",vous:"voulez",ils:"veulent"},
+    devoir:{je:"dois",tu:"dois",il:"doit",nous:"devons",vous:"devez",ils:"doivent"},
+    venir:{je:"viens",tu:"viens",il:"vient",nous:"venons",vous:"venez",ils:"viennent"},
+    prendre:{je:"prends",tu:"prends",il:"prend",nous:"prenons",vous:"prenez",ils:"prennent"},
+    voir:{je:"vois",tu:"vois",il:"voit",nous:"voyons",vous:"voyez",ils:"voient"},
+    savoir:{je:"sais",tu:"sais",il:"sait",nous:"savons",vous:"savez",ils:"savent"},
+    mettre:{je:"mets",tu:"mets",il:"met",nous:"mettons",vous:"mettez",ils:"mettent"},
+    partir:{je:"pars",tu:"pars",il:"part",nous:"partons",vous:"partez",ils:"partent"},
+    sortir:{je:"sors",tu:"sors",il:"sort",nous:"sortons",vous:"sortez",ils:"sortent"}
+  };
+  const VERBS=[["parler","mówić"],["finir","kończyć"],["vendre","sprzedawać"],["être","być"],["avoir","mieć"],["aller","iść"],["faire","robić"],["dire","powiedzieć"],["pouvoir","móc"],["vouloir","chcieć"],["devoir","musieć"],["venir","przyjść"],["prendre","brać"],["voir","widzieć"],["savoir","wiedzieć"],["mettre","kłaść"],["partir","wyjść"],["sortir","wychodzić"]];
+  const ct=inf=>inf.endsWith("er")?"er":inf.endsWith("ir")?"ir":"re";
+  const rs=inf=>inf.replace(/(er|ir|re)$/,"");
+  function conjugate(inf){const out={};
+    if(FULL[inf]){PERSONS.forEach(p=>out[p]={form:FULL[inf][p]});out.__kind="full";return out;}
+    const t=ct(inf),r=rs(inf);
+    PERSONS.forEach(p=>out[p]={form:r+REG[t][p]});out.__kind="reg";return out;}
+  const kindOf=inf=>FULL[inf]?"full":"reg";
+  return {id:"frpres",name:"Présent",sysSub:"Regularne: -er (parle), -ir (finit → -iss- w l. mn.), -re (vends). Nieregularne wykuwasz w całości — francuskich jest dużo.",
+    PERSONS,REG,PERSON_PEG,VERBS,MNEMO:{},FULL,conjugate,kindOf,ct,rs,stemOf:()=>null,demo133:"être"};
+})();
+
 /* ============ REJESTR MODUŁÓW  (klucz: "język|czas") ============ */
 /* Dodanie nowego modułu = JEDNA linia: MODULES['xx|yy'] = VB.zz  (obiekt spełniający kontrakt VB). */
 const MODULES = {
@@ -1282,6 +1318,7 @@ const MODULES = {
   'es|past': VB.es,        // Pretérito indefinido
   'es|pres': VB.es_pres,   // Presente
   'es|fut':  VB.es_fut,    // Futuro simple
+  'fr|pres': VB.fr_pres,   // Présent
 };
 const LANG_META = {
   it:{flag:'🇮🇹',name:'Włoski'},
