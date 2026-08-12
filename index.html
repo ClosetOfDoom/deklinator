@@ -737,7 +737,7 @@ VB.es=(function(){
 /* ---------- WSPÓLNY SILNIK DRYLU (IT/ES) ---------- */
 let vbCur=null, vbLang=null, vbAnswered=false, vbStreak=0, vbScope="all", vbRecent=[], vbDiff="med";
 let vbConjSel=new Set(), vbPersonSel=new Set(), vbVerbSel="all", vbPegHint=false;
-function vbConjList(L){return L.id==="it"?["are","ere","ire"]:["ar","er","ir"];}
+function vbConjList(L){return [...new Set(L.VERBS.map(v=>L.ct(v[0])))];}
 function vbResetFilters(L){ vbConjSel=new Set(vbConjList(L)); vbPersonSel=new Set(L.PERSONS); vbVerbSel="all"; vbScope="all"; }
 const vbStats=(()=>{try{return JSON.parse(localStorage.getItem("vb_stats")||"{}");}catch(e){return{};}})();
 function vbSaveStats(){try{localStorage.setItem("vb_stats",JSON.stringify(vbStats));}catch(e){}}
@@ -851,8 +851,8 @@ function vbPegHintHTML(){ // pasek pegów jak zakładki (bez ujawniania formy) �
   const nodes=[`<div class="node"><span class="ic">${pp.ic}</span><span class="lb">${pp.n} ${per}</span></div>`,
     `<div class="node"><span class="ic">${cp.ic}</span><span class="lb">${cp.sub} (${L.ct(inf)})</span></div>`];
   if(reg){
-    const e=END_HINT[L.id][per];
-    nodes.push(`<div class="node"><span class="ic">${e.ic}</span><span class="lb">${e.lb}</span></div>`);
+    const e=(END_HINT[L.id]||{})[per];
+    if(e) nodes.push(`<div class="node"><span class="ic">${e.ic}</span><span class="lb">${e.lb}</span></div>`);
   } else if(L.id==="es" && kind==="stem"){
     const [fr,to]=L.IRSC[inf];
     nodes.push(`<div class="node"><span class="ic">🔀</span><span class="lb">${fr}→${to}</span></div>`);
@@ -869,7 +869,8 @@ function vbBox(cap,body){ return `<div class="vscene"><div class="cap">${cap}</d
 /* pegi koniugacji (temat) + końcówek (osoba) — system Fifiego: are=browarek, ere=serek, ire=gira */
 const CONJ_PEG={
   are:{ic:"🍺",sub:"browarek",v:"a",acc:"ò"}, ere:{ic:"🧀",sub:"serek",v:"e",acc:"é"}, ire:{ic:"🦶",sub:"gira",v:"i",acc:"ì"},
-  ar:{ic:"🍺",sub:"browarek",v:"a"}, er:{ic:"🧀",sub:"serek",v:"e"}, ir:{ic:"🦶",sub:"gira",v:"i"}
+  ar:{ic:"🍺",sub:"browarek",v:"a"}, er:{ic:"🧀",sub:"serek",v:"e"}, ir:{ic:"🦶",sub:"gira",v:"i"},
+  re:{ic:"🎀",sub:"wstążka",v:"e"}
 };
 function itEndScene(per,cp,form){
   const P=`${cp.ic} <b>${cp.sub}</b>`;
@@ -902,10 +903,26 @@ function regEndScene(L,inf,per,form){
   return vbBox("praca wyobraźni · "+ct,
     `${body}<div style="margin-top:8px;font-size:12.5px;color:var(--muted)">Temat znasz z bezokolicznika (${L.rs(inf)}‑) — scena blokuje samą <b>końcówkę</b>: osoba + koniugacja (${cp.sub}).</div>`);
 }
+function genericScene(L,c,inf,per,form,kind,meaning){
+  const pp=(L.PERSON_PEG||{})[per]||{ic:"·",pl:per,n:""};
+  const cp=CONJ_PEG[L.ct(inf)]||{ic:"·",sub:L.ct(inf)};
+  const all=L.PERSONS.map(p=>c[p].form).join(" · ");
+  if(kind==="reg"){
+    return vbBox("praca wyobraźni · "+L.ct(inf),
+      `«${meaning}» — regularna końcówka: osoba <b>${pp.pl}</b> ${pp.ic} + koniugacja <b>${cp.sub} (${L.ct(inf)})</b>. Temat z bezokolicznika (${L.rs(inf)}‑), odtwarzasz samą końcówkę → <b>${form}</b>.`);
+  }
+  const st=(L.stemOf&&L.stemOf(inf))||null, mm=(st&&L.MNEMO)?L.MNEMO[st]:null;
+  const hook=mm?` Zaczep: <span class="hl">${mm.sub}</span> — ${mm.img}.`:"";
+  return vbBox("forma nieregularna",
+    `«${meaning}» → <b>${form}</b>. Wykuj cały rząd: <b>${all}</b>.${hook}`);
+}
 function vbSceneFor(L,inf,per){
   const c=L.conjugate(inf), form=c[per].form, kind=c.__kind;
   const meaning=(vbGloss(L,inf)||"").split("/")[0];
   const P=L.PERSONS;
+
+  // ── moduły generyczne (nowe czasy / francuski) — scena bez założeń o czasie/osobach ──
+  if(L.id!=="it" && L.id!=="es") return genericScene(L,c,inf,per,form,kind,meaning);
 
   // ── REGULARNE — praca wyobraźni na końcówce ──
   if(kind==="reg") return regEndScene(L,inf,per,form);
@@ -1005,23 +1022,39 @@ function vbRenderSystem(){
   document.getElementById("vsys-sub").textContent=L.sysSub;
   const el=document.getElementById("vsystem");
   const demo=L.conjugate(L.demo133),P=L.PERSONS;
-  const wild=L.id==="it"?["io","lui","loro"]:["yo","el","ellos"];
-  let g="";for(const p of P){const w=wild.includes(p);g+=`<div class="r ${w?"irr":"reg"}"><div class="p">${L.PERSON_PEG[p].n} ${p}</div><div class="v">${demo[p].form}</div></div>`;}
-  const nIrr=L.id==="it"?Object.keys(L.IRREG).length:Object.keys(L.STRONG).length;
-  const anchor=L.id==="it"?"io = "+demo.io.form:"yo = "+demo.yo.form;
-  el.innerHTML=`
+  const isPast=L.id==="it"||L.id==="es";
+  const regCard=`
   <div class="rulecard" style="background:var(--card);border:1px solid var(--line);border-radius:14px;padding:18px;margin-bottom:14px">
     <h3 style="font-family:'Fraunces',serif;font-size:18px;margin:0 0 6px">Regularne = tabela końcówek</h3>
     <div class="scroll"><table><thead><tr><th></th>${Object.keys(L.REG).map(k=>`<th>-${k}</th>`).join("")}</tr></thead><tbody>
     ${P.map(p=>`<tr><th>${L.PERSON_PEG[p].n} ${p}</th>${Object.keys(L.REG).map(k=>`<td><span style="color:var(--gold);font-weight:700">‑${L.REG[k][p]}</span></td>`).join("")}</tr>`).join("")}
     </tbody></table></div>
-  </div>
-  <div class="rulecard" style="background:var(--card);border:1px solid var(--line);border-radius:14px;padding:18px;margin-bottom:14px">
-    <h3 style="font-family:'Fraunces',serif;font-size:18px;margin:0 0 6px">Nieregularne — jeden wzór (${nIrr} czasowników)</h3>
-    <p style="font-size:14px;margin:0 0 6px">Łamią się tylko w <b>${wild.join(", ")}</b>. Reszta zostaje regularna. Przykład <b>${L.demo133}</b>:</p>
-    <div class="g133">${g}</div>
-    <p style="font-size:14px;margin:6px 0 0">Uczysz się <b>jednej formy: ${anchor}</b>, resztę wyprowadzasz mechanicznie z tego samego tematu.</p>
   </div>`;
+  let irrCard;
+  if(isPast){
+    const wild=L.id==="it"?["io","lui","loro"]:["yo","el","ellos"];
+    let g="";for(const p of P){const w=wild.includes(p);g+=`<div class="r ${w?"irr":"reg"}"><div class="p">${L.PERSON_PEG[p].n} ${p}</div><div class="v">${demo[p].form}</div></div>`;}
+    const nIrr=L.id==="it"?Object.keys(L.IRREG).length:Object.keys(L.STRONG).length;
+    const anchor=L.id==="it"?"io = "+demo.io.form:"yo = "+demo.yo.form;
+    irrCard=`
+    <div class="rulecard" style="background:var(--card);border:1px solid var(--line);border-radius:14px;padding:18px;margin-bottom:14px">
+      <h3 style="font-family:'Fraunces',serif;font-size:18px;margin:0 0 6px">Nieregularne — jeden wzór (${nIrr} czasowników)</h3>
+      <p style="font-size:14px;margin:0 0 6px">Łamią się tylko w <b>${wild.join(", ")}</b>. Reszta zostaje regularna. Przykład <b>${L.demo133}</b>:</p>
+      <div class="g133">${g}</div>
+      <p style="font-size:14px;margin:6px 0 0">Uczysz się <b>jednej formy: ${anchor}</b>, resztę wyprowadzasz mechanicznie z tego samego tematu.</p>
+    </div>`;
+  } else {
+    const nIrr=L.VERBS.filter(v=>L.kindOf(v[0])!=="reg").length;
+    const irrDemo=L.kindOf(L.demo133)!=="reg";
+    const g=P.map(p=>`<div class="r ${irrDemo?"irr":"reg"}"><div class="p">${(L.PERSON_PEG[p]||{}).n||""} ${p}</div><div class="v">${demo[p].form}</div></div>`).join("");
+    irrCard=`
+    <div class="rulecard" style="background:var(--card);border:1px solid var(--line);border-radius:14px;padding:18px;margin-bottom:14px">
+      <h3 style="font-family:'Fraunces',serif;font-size:18px;margin:0 0 6px">Nieregularne (${nIrr} czasowników)</h3>
+      <p style="font-size:14px;margin:0 0 6px">Nie idą tabelą — wykuj pełne formy. Przykład <b>${L.demo133}</b>:</p>
+      <div class="g133">${g}</div>
+    </div>`;
+  }
+  el.innerHTML=regCard+irrCard;
 }
 function vbRenderTables(){
   const L=vbLang,el=document.getElementById("vtables");el.innerHTML="";const P=L.PERSONS;
