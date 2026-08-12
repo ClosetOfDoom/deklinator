@@ -1309,6 +1309,27 @@ VB.fr_pres=(function(){
     PERSONS,REG,PERSON_PEG,VERBS,MNEMO:{},FULL,conjugate,kindOf,ct,rs,stemOf:()=>null,demo133:"être"};
 })();
 
+/* ---------- FR: futur simple ---------- */
+VB.fr_fut=(function(){
+  const PERSONS=["je","tu","il","nous","vous","ils"];
+  const END={je:"ai",tu:"as",il:"a",nous:"ons",vous:"ez",ils:"ont"};
+  const IRR={"être":"ser",avoir:"aur",aller:"ir",faire:"fer",venir:"viendr",pouvoir:"pourr",vouloir:"voudr",devoir:"devr",voir:"verr",savoir:"saur",envoyer:"enverr"};
+  const PERSON_PEG={je:{n:1,ic:"🕯️",peg:"świeca",pl:"ja"},tu:{n:2,ic:"🦢",peg:"łabędź",pl:"ty"},il:{n:3,ic:"🍀",peg:"koniczyna",pl:"on/ona"},nous:{n:4,ic:"⛵",peg:"żagiel",pl:"my"},vous:{n:5,ic:"🖐️",peg:"dłoń",pl:"wy"},ils:{n:6,ic:"🎲",peg:"kostka",pl:"oni"}};
+  const REG={er:{je:"erai",tu:"eras",il:"era",nous:"erons",vous:"erez",ils:"eront"},
+    ir:{je:"irai",tu:"iras",il:"ira",nous:"irons",vous:"irez",ils:"iront"},
+    re:{je:"rai",tu:"ras",il:"ra",nous:"rons",vous:"rez",ils:"ront"}};
+  const ct=inf=>inf.endsWith("er")?"er":inf.endsWith("ir")?"ir":"re";
+  const rs=inf=>inf.replace(/(er|ir|re)$/,"");
+  function futStem(inf){ if(IRR[inf])return IRR[inf]; if(inf.endsWith("re"))return inf.slice(0,-1); return inf; }
+  function conjugate(inf){const out={};const st=futStem(inf);
+    PERSONS.forEach(p=>out[p]={form:st+END[p]});
+    out.__kind=IRR[inf]?"full":"reg";return out;}
+  const kindOf=inf=>IRR[inf]?"full":"reg";
+  const VERBS=[["parler","mówić"],["finir","kończyć"],["vendre","sprzedawać"],["être","być"],["avoir","mieć"],["aller","iść"],["faire","robić"],["venir","przyjść"],["pouvoir","móc"],["vouloir","chcieć"],["devoir","musieć"],["voir","widzieć"],["savoir","wiedzieć"],["envoyer","wysłać"]];
+  return {id:"frfut",name:"Futur simple",sujSub:"",sysSub:"Wspólne końcówki -ai/-as/-a/-ons/-ez/-ont. Regularne: cały bezokolicznik (-re gubi -e). Nieregularne: krótki temat (ser-, aur-, ir-, fer-, viendr-...).",
+    PERSONS,REG,PERSON_PEG,VERBS,MNEMO:{},FULL:{},conjugate,kindOf,ct,rs,stemOf:()=>null,demo133:"être"};
+})();
+
 /* ============ REJESTR MODUŁÓW  (klucz: "język|czas") ============ */
 /* Dodanie nowego modułu = JEDNA linia: MODULES['xx|yy'] = VB.zz  (obiekt spełniający kontrakt VB). */
 const MODULES = {
@@ -1319,6 +1340,7 @@ const MODULES = {
   'es|pres': VB.es_pres,   // Presente
   'es|fut':  VB.es_fut,    // Futuro simple
   'fr|pres': VB.fr_pres,   // Présent
+  'fr|fut':  VB.fr_fut,    // Futur simple
 };
 const LANG_META = {
   it:{flag:'🇮🇹',name:'Włoski'},
