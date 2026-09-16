@@ -1,0 +1,2 @@
+# skrypty builda musza miec LF, zeby dzialaly na Linuksie Netlify
+*.sh text eol=lf
