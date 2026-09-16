@@ -198,6 +198,7 @@
   .st-slot{white-space:nowrap;}
   .st-slot.ok input.tend{color:var(--ok);border-bottom-color:var(--ok);}
   .st-slot.bad input.tend{color:var(--bad);border-bottom-color:var(--bad);}
+  .st-slot.miss input.tend{color:var(--muted);border-bottom-color:var(--gold);}
   .st-fix{font-family:"Space Mono",monospace;font-weight:700;font-size:.62em;color:var(--ok);padding:0 2px;}
   .st-reveal{font-weight:700;}
   .st-recall-line{padding:10px 0;border-bottom:1px solid var(--line);}
@@ -264,6 +265,7 @@
   input.tend.art{width:6ch;border-bottom-color:#D8D5CC;}
   input.tend.ok{color:var(--ok);border-bottom-color:var(--ok);}
   input.tend.bad{color:var(--bad);border-bottom-color:var(--bad);text-decoration:line-through;}
+  input.tend.miss{color:var(--muted);border-bottom-color:var(--gold);background:#FFF8E1;}
   .fix{font-family:"Space Mono",monospace;font-weight:700;font-size:.72em;color:var(--ok);padding:0 2px;}
   .type-hint{margin-top:14px;font-size:11.5px;color:var(--muted);font-style:italic;}
   .redo-flag{display:none;font-family:"Space Mono",monospace;font-size:11px;color:var(--bad);
@@ -378,7 +380,7 @@
     <button data-v="exam">Egzamin</button>
     <button data-v="story">Historia</button>
     <button data-v="stats">Postępy</button>
-    <button data-v="pegs">Zakładki</button>
+    <button data-v="pegs" id="nav-legend"></button>
   </nav>
 
   <!-- ============ TRENING ============ -->
@@ -571,8 +573,8 @@
 
   <!-- ============ ZAKŁADKI ============ -->
   <div class="view" id="v-pegs">
-    <h2>Zakładki</h2>
-    <p class="h2sub">Cztery warstwy sceny: przypadek → rodzaj → rodzajnik → końcówka. Łączone zawsze parami.</p>
+    <h2 id="v-legend-title"></h2>
+    <p class="h2sub">Ściąga ze znaczeniem wszystkich symboli, którymi posługują się sceny i łańcuchy w Treningu — zajrzyj tu, gdy nie pamiętasz, co oznacza dany obrazek.<br>Cztery warstwy sceny: przypadek → rodzaj → rodzajnik → końcówka. Łączone zawsze parami.</p>
 
     <div class="panel" style="margin-bottom:16px">
       <h3 style="font-family:'Fraunces',serif;margin:0 0 6px;font-size:18px;">Po co ta zakładka?</h3>
@@ -2293,21 +2295,93 @@ function drawTypingControls(){
   b.textContent="Sprawdź (Enter)";
   b.addEventListener("click",submitTyping);
   answersEl.appendChild(b);
-  qPhrase.querySelectorAll("input.tend").forEach(inp=>{
-    inp.addEventListener("keydown",e=>{
-      if(e.key==="Enter"){e.preventDefault(); answered?nextCard():submitTyping();}
-    });
-  });
+  const hint=document.createElement("div"); hint.className="lbl"; hint.id="type-hint"; hint.style.marginTop="8px";
+  answersEl.appendChild(hint);
+  typeForced=false;
+  wireEnterChain(qPhrase,submitTyping);
   const first=document.getElementById("in-art")||document.getElementById("in-adj");
   if(first) first.focus();
 }
-const normEnd=v=>v.trim().toLowerCase().replace(/^[-‐‑–—∅]+/,"").trim();
-function markInput(inp,ok,correctDisplay){
-  inp.classList.add(ok?"ok":"bad");
-  if(!ok){
-    const fix=document.createElement("span"); fix.className="fix"; fix.textContent=correctDisplay;
-    inp.after(fix);
-  } else if(!inp.value.trim()){ inp.value="∅"; }
+/* ============================================================================
+   JEDNO ŹRÓDŁO PRAWDY — ocena frazy.
+   Każde pole jest slotem: {kind, id, el, expected}. Ocena wyłącznie przez
+   validateAnswer(). Żadnych porównań w handlerach inputów, żadnej oceny
+   po kolejności w DOM ani po długości tekstu.
+   ========================================================================== */
+const normEnd=v=>String(v==null?"":v).trim().toLowerCase().replace(/^[-‐‑–—∅]+/,"").trim();
+const SLOT_LABEL={art:"rodzajnik",adj:"przymiotnik",noun:"rzeczownik"};
+
+/* Buduje sloty jednej frazy. JEDYNE miejsce, gdzie id pola łączy się
+   z oczekiwaną końcówką — po kluczu slotu, nie po pozycji. */
+function phraseSlots(prefix,ph,np){
+  const out=[];
+  const add=(kind,expected)=>{
+    const id=prefix+"-"+kind;
+    const el=document.getElementById(id);
+    if(el) out.push({kind,id,el,expected:normEnd(expected)});
+  };
+  add("art", ph.art||"");
+  add("adj", ph.end||"");
+  if(np && np.suf!==null) add("noun", np.suf||"");
+  return out;
+}
+
+/* JEDYNA funkcja oceniająca. Status pola:
+     "ok"    — wpis zgodny z końcówką tego slotu
+     "bad"   — coś wpisano i jest błędne
+     "empty" — pole puste, a końcówka jest wymagana → NIEUZUPEŁNIONE, nigdy błąd
+   Pole puste przy expected==="" jest poprawne (∅). */
+function validateAnswer(slots){
+  const res=slots.map(s=>{
+    const raw = s.el ? s.el.value : (s.value!==undefined ? s.value : "");
+    const filled=String(raw).trim()!=="";
+    const given=normEnd(raw);
+    let status;
+    if(!filled && s.expected!=="") status="empty";
+    else status = (given===s.expected) ? "ok" : "bad";
+    return {kind:s.kind,id:s.id,el:s.el,expected:s.expected,given,filled,status};
+  });
+  const missing=res.filter(r=>r.status==="empty");
+  const wrong  =res.filter(r=>r.status==="bad");
+  return {slots:res, missing, wrong,
+          complete: missing.length===0,
+          allOk: missing.length===0 && wrong.length===0};
+}
+
+/* Feedback per pole. */
+function paintSlot(r,fixClass){
+  const el=r.el; if(!el) return;
+  el.classList.remove("ok","bad","miss");
+  el.classList.add(r.status==="bad"?"bad":r.status==="empty"?"miss":"ok");
+  const sib=el.nextElementSibling;
+  if(sib&&(sib.classList.contains("fix")||sib.classList.contains("st-fix"))) sib.remove();
+  if(r.status==="bad"){
+    const f=document.createElement("span"); f.className=fixClass||"fix";
+    f.textContent=r.expected||"∅"; el.after(f);
+  } else if(r.status==="ok" && !el.value.trim()) el.value="∅";
+}
+function paintMissingOnly(v){
+  v.slots.forEach(r=>{
+    r.el.classList.remove("ok","bad","miss");
+    if(r.status==="empty") r.el.classList.add("miss");
+  });
+}
+function missingMsg(v){
+  return "Uzupełnij: "+v.missing.map(r=>SLOT_LABEL[r.kind]).join(", ")+
+         " — albo kliknij ponownie, żeby ocenić mimo braków.";
+}
+
+/* Enter przenosi do kolejnego pola; ocena dopiero na ostatnim. */
+function wireEnterChain(root,onSubmit){
+  const ins=[...root.querySelectorAll("input.tend")];
+  ins.forEach((inp,i)=>{
+    inp.addEventListener("keydown",e=>{
+      if(e.key!=="Enter") return;
+      e.preventDefault();
+      const next=ins.slice(i+1).find(x=>!x.disabled);
+      if(next) next.focus(); else onSubmit();
+    });
+  });
 }
 function nounNote(){
   const {c,g,np}=current;
@@ -2317,42 +2391,45 @@ function nounNote(){
     : `Rzeczownik: tu bez końcówki — l. mnoga kończy się już na ‑n/‑s (${np.base}).`;
   return `Rzeczownik: w tym polu bez końcówki (${np.base}).`;
 }
+let typeForced=false;
 function submitTyping(){
   if(answered) return;
-  answered=true;
   const {ph,np}=current;
-  let allOk=true, pickedAdj=null; const notes=[];
-  const adjIn=document.getElementById("in-adj");
-  const okA = normEnd(adjIn.value)===ph.end;
-  markInput(adjIn,okA,ph.end);
-  if(!okA){ allOk=false; pickedAdj=normEnd(adjIn.value)||"∅"; }
-  const artIn=document.getElementById("in-art");
-  if(artIn){
-    const okArt = normEnd(artIn.value)===(ph.art||"").toLowerCase();
-    markInput(artIn,okArt,ph.art||"∅");
-    if(!okArt){
-      allOk=false;
-      if(ph.art===""){
-        const why = current.d==="mieszana"
-          ? `Rodzajnik: tu <b>brak</b> (∅). „ein" nie ma liczby mnogiej — mnoga idzie bez rodzajnika, po mocnemu. Zostaw puste.`
-          : `Rodzajnik: tu <b>brak</b> (∅). Deklinacja mocna = bez rodzajnika. Zostaw puste.`;
-        notes.push(why);
-      } else {
-        notes.push(`Rodzajnik: „${artIn.value.trim()||"∅"}" → <b>${ph.art}</b>.`);
-      }
+  const v=validateAnswer(phraseSlots("in",ph,np));
+
+  // Puste pole = stan neutralny. Bez kompletu nie ma ani oceny, ani komunikatu
+  // zbiorczego — dopiero drugie kliknięcie wymusza ocenę z brakami.
+  if(!v.complete && !typeForced){
+    typeForced=true;
+    paintMissingOnly(v);
+    const h=document.getElementById("type-hint"); if(h) h.textContent=missingMsg(v);
+    const chk=document.getElementById("btn-check"); if(chk) chk.textContent="Oceń mimo braków";
+    const first=v.missing[0]; if(first&&first.el) first.el.focus();
+    return;
+  }
+
+  answered=true;
+  const notes=[];
+  const by={}; v.slots.forEach(r=>{by[r.kind]=r; paintSlot(r,"fix");});
+  const pickedAdj = by.adj && by.adj.status!=="ok" ? (by.adj.given||"∅") : null;
+
+  if(by.art && by.art.status!=="ok"){
+    if(ph.art===""){
+      notes.push(current.d==="mieszana"
+        ? `Rodzajnik: tu <b>brak</b> (∅). „ein" nie ma liczby mnogiej — mnoga idzie bez rodzajnika, po mocnemu. Zostaw puste.`
+        : `Rodzajnik: tu <b>brak</b> (∅). Deklinacja mocna = bez rodzajnika. Zostaw puste.`);
+    } else {
+      notes.push(`Rodzajnik: „${by.art.given||"∅"}" → <b>${ph.art}</b>.`);
     }
   }
-  const nounIn=document.getElementById("in-noun");
-  if(nounIn){
-    const okN = normEnd(nounIn.value)===np.suf;
-    markInput(nounIn,okN,np.suf||"∅");
-    if(!okN){ allOk=false; notes.push(nounNote()); }
-    else if(np.suf) notes.push(""); // nic — poprawnie
-  }
+  if(by.noun && by.noun.status!=="ok") notes.push(nounNote());
+
   qPhrase.querySelectorAll("input.tend").forEach(i=>i.disabled=true);
   const chk=document.getElementById("btn-check"); if(chk) chk.disabled=true;
-  registerResult(allOk,true);
-  showVerdict(allOk,pickedAdj,notes.filter(Boolean).join("<br>"));
+  const h=document.getElementById("type-hint");
+  if(h) h.textContent = v.allOk ? "" : v.missing.length ? "Pola nieuzupełnione policzone jako błędne." : "";
+  registerResult(v.allOk,true);
+  showVerdict(v.allOk,pickedAdj,notes.filter(Boolean).join("<br>"));
 }
 function drawAnswers(){
   answersEl.innerHTML="";
@@ -2369,15 +2446,21 @@ function drawAnswers(){
     label = nounEndGap() ? "wybierz końcówkę przymiotnika · wpisz końcówkę rzeczownika (‑/‑s/‑es)" : "wybierz końcówkę przymiotnika";
   }
   const lbl=document.createElement("div"); lbl.className="lbl"; lbl.textContent=label; answersEl.appendChild(lbl);
+  pickForced=false;
   for(const o of options){
     const b=document.createElement("button"); b.className="ans"; b.type="button";
     b.textContent = stage==="art" ? o : "‑"+o;
     b.addEventListener("click",()=>pick(b,o,correct));
     answersEl.appendChild(b);
   }
+  const ph2=document.createElement("div"); ph2.className="lbl"; ph2.id="pick-hint"; ph2.style.marginTop="8px";
+  answersEl.appendChild(ph2);
 }
+let pickForced=false;
 function pick(btn,val,correct){
-  const ok = val===correct;
+  // ta sama funkcja oceniająca co w trybie wpisywania — slot bez DOM
+  const kind = stage==="art" ? "art" : "adj";
+  const ok = validateAnswer([{kind,id:"pick-"+kind,value:val,expected:normEnd(correct)}]).allOk;
   if(stage==="art"){
     answersEl.querySelectorAll(".ans").forEach(b=>b.disabled=true);
     btn.classList.add(ok?"picked-ok":"picked-bad");
@@ -2390,18 +2473,23 @@ function pick(btn,val,correct){
     return;
   }
   if(answered) return;
+  // Luka końcówki rzeczownika (tryb 🙈) — ta sama reguła co przy wpisywaniu:
+  // puste pole to stan neutralny, nie błąd. Bez kompletu nie finalizujemy karty.
+  const pend=validateAnswer(phraseSlots("in",current.ph,current.np));
+  if(!pend.complete && !pickForced){
+    pickForced=true;
+    paintMissingOnly(pend);
+    const h=document.getElementById("pick-hint"); if(h) h.textContent=missingMsg(pend);
+    const f=pend.missing[0]; if(f&&f.el) f.el.focus();
+    return;
+  }
   answered=true;
   answersEl.querySelectorAll(".ans").forEach(b=>b.disabled=true);
   btn.classList.add(ok?"picked-ok":"picked-bad");
   if(!ok) answersEl.querySelectorAll(".ans").forEach(b=>{if(b.textContent==="‑"+correct)b.classList.add("correct");});
-  // końcówka rzeczownika do wypełnienia (tryb 🙈 Ukryj końcówkę rzeczownika, dopełniacz M/N)
   let finalOk=ok, extra="";
-  const nounIn=document.getElementById("in-noun");
-  if(nounIn){
-    const okN=normEnd(nounIn.value)===current.np.suf;
-    markInput(nounIn,okN,current.np.suf||"∅"); nounIn.disabled=true;
-    if(!okN){ finalOk=false; extra=nounNote(); }
-  }
+  const byK={}; pend.slots.forEach(r=>{byK[r.kind]=r; paintSlot(r,"fix"); r.el.disabled=true;});
+  if(byK.noun && byK.noun.status!=="ok"){ finalOk=false; extra=nounNote(); }
   if(artWrong){
     // błąd rodzajnika już zarejestrowano (i wrzucono kartę do powtórki) w etapie „art";
     // nie nadpisuj tego sukcesem — cała fraza liczy się jako błąd
@@ -2467,8 +2555,10 @@ function showVerdict(ok,picked,extra){
 document.getElementById("btn-next").addEventListener("click",nextCard);
 document.addEventListener("keydown",e=>{
   if(!document.getElementById("v-drill").classList.contains("on")) return;
-  if((e.target.tagName==="INPUT"||e.target.tagName==="SELECT") && !answered) return;
-  if(e.code==="Space" && answered){e.preventDefault();nextCard();return;}
+  // Enter obsłużony już przez łańcuch pól (wireEnterChain) — nie przewijaj karty
+  if(e.defaultPrevented) return;
+  if(e.target.tagName==="INPUT"||e.target.tagName==="SELECT") return;
+  if((e.code==="Space"||e.key==="Enter") && answered){e.preventDefault();nextCard();return;}
   const map={"1":0,"2":1,"3":2,"4":3,"5":4};
   if(map[e.key]!==undefined){
     const btns=[...answersEl.querySelectorAll(".ans")];
@@ -2679,7 +2769,13 @@ function renderStats(){
   }
 }
 
-/* ================= ZAKŁADKI ================= */
+/* ================= LEGENDA ================= */
+/* jedno źródło prawdy dla etykiety tego widoku — nav i nagłówek biorą tekst stąd */
+const LEGEND_LABEL="Legenda";
+function applyLegendLabel(){
+  const n=document.getElementById("nav-legend"); if(n) n.textContent=LEGEND_LABEL;
+  const t=document.getElementById("v-legend-title"); if(t) t.textContent=LEGEND_LABEL;
+}
 function renderLegend(){
   document.getElementById("legend").innerHTML = `
   <div class="lg"><h3>Deklinacja — cecha sceny (otwiera każdy obraz)</h3>
@@ -2718,6 +2814,7 @@ function renderLegend(){
 }
 // Uruchom dopiero, gdy DOM na pewno gotowy — plus fallback, gdyby #legend został pusty.
 function ensureLegend(){
+  applyLegendLabel();
   try{ renderLegend(); }catch(e){}
   const el=document.getElementById("legend");
   if(!el || !el.innerHTML.trim()){ try{ renderLegend(); }catch(e){} }
@@ -2946,33 +3043,32 @@ function stRenderFill(){
     <div class="st-phase">Etap 1 · uzupełnij (tekst widoczny) — puste pole = brak końcówki</div>
     <h3 class="st-title">${story.title} <span class="st-pl">— ${story.pl}</span></h3>
     <div class="st-body">${html}</div>
+    <div class="lbl" id="st-hint" style="margin-top:8px"></div>
     <div class="nextrow"><button class="btn primary" id="st-check">Sprawdź etap 1</button></div>`;
-  stBox.querySelectorAll("input.tend").forEach(inp=>inp.addEventListener("keydown",e=>{
-    if(e.key==="Enter"){e.preventDefault(); stCheckFill();}
-  }));
+  stFillForced=false;
+  wireEnterChain(stBox,stCheckFill);
   document.getElementById("st-check").addEventListener("click",stCheckFill);
   const f=stBox.querySelector("input.tend"); if(f)f.focus();
 }
 function markSlot(prefix,ph,np){
-  let ok=true;
-  const av=normEnd(document.getElementById(prefix+"-art").value);
-  const okA=av===(ph.art||"").toLowerCase();
-  const bv=normEnd(document.getElementById(prefix+"-adj").value);
-  const okB=bv===ph.end;
-  let okN=true;
-  const nEl=document.getElementById(prefix+"-noun");
-  if(nEl){ okN=normEnd(nEl.value)===np.suf; }
-  ok=okA&&okB&&okN;
+  const v=validateAnswer(phraseSlots(prefix,ph,np));
   const wrap=document.getElementById(prefix+"-wrap");
-  wrap.classList.add(ok?"ok":"bad");
-  [["-art",okA,ph.art||"∅"],["-adj",okB,ph.end],["-noun",okN,np.suf]].forEach(([suf,good,corr])=>{
-    const el=document.getElementById(prefix+suf); if(!el)return; el.disabled=true;
-    if(!good){const f=document.createElement("span");f.className="st-fix";f.textContent=corr||"∅";el.after(f);}
-    else if(!el.value.trim()) el.value="∅";
-  });
-  return ok;
+  if(wrap){ wrap.classList.remove("ok","bad","miss"); wrap.classList.add(v.allOk?"ok":"bad"); }
+  v.slots.forEach(r=>{ paintSlot(r,"st-fix"); r.el.disabled=true; });
+  return v.allOk;
 }
+let stFillForced=false;
 function stCheckFill(){
+  const all=ST.slots.flatMap(slot=>{const {ph,np}=stBuild(slot); return phraseSlots(slot.prefix,ph,np);});
+  const pre=validateAnswer(all);
+  if(!pre.complete && !stFillForced){
+    stFillForced=true;
+    paintMissingOnly(pre);
+    const h=document.getElementById("st-hint"); if(h) h.textContent=missingMsg(pre);
+    const b=document.getElementById("st-check"); if(b) b.textContent="Oceń mimo braków";
+    const f=pre.missing[0]; if(f&&f.el) f.el.focus();
+    return;
+  }
   let okCount=0;
   for(const slot of ST.slots){
     const {ph,np}=stBuild(slot);
@@ -3026,34 +3122,40 @@ function stRenderRecall(){
     <div class="st-phase">Etap 2 · odtwórz z pamięci — wpisz rodzajnik i końcówki, kierując się polską podpowiedzią</div>
     <h3 class="st-title">${story.title}</h3>
     <div>${html}</div>
+    <div class="lbl" id="st-hint2" style="margin-top:8px"></div>
     <div class="nextrow"><button class="btn primary" id="st-grade">Sprawdź i oceń</button></div>`;
-  stBox.querySelectorAll("input.tend").forEach(inp=>inp.addEventListener("keydown",e=>{
-    if(e.key==="Enter"){e.preventDefault(); stGradeRecall();}
-  }));
+  stRecallForced=false;
+  wireEnterChain(stBox,stGradeRecall);
   document.getElementById("st-grade").addEventListener("click",stGradeRecall);
   const f=stBox.querySelector("input.tend"); if(f)f.focus();
 }
+/* sloty etapu 2 — jedno wyliczenie, używane i do walidacji wstępnej, i do oceny */
+function stRecallSlots(){
+  const out=[];
+  ST.recall.forEach((l,i)=>l.slots.forEach((s,j)=>{
+    const {ph,np,d,c,g}=stBuild({s});
+    out.push({cell:d+"|"+c+"|"+g, slots:phraseSlots("rc"+i+"-"+j,ph,np)});
+  }));
+  return out;
+}
+let stRecallForced=false;
 function stGradeRecall(){
   const {story}=ST;
+  const groups=stRecallSlots();
+  const pre=validateAnswer(groups.flatMap(g=>g.slots));
+  if(!pre.complete && !stRecallForced){
+    stRecallForced=true;
+    paintMissingOnly(pre);
+    const h=document.getElementById("st-hint2"); if(h) h.textContent=missingMsg(pre);
+    const b=document.getElementById("st-grade"); if(b) b.textContent="Oceń mimo braków";
+    const f=pre.missing[0]; if(f&&f.el) f.el.focus();
+    return;
+  }
   let total=0, ok=0; const errs=[];
-  ST.recall.forEach((l,i)=>{
-    l.slots.forEach((s,j)=>{
-      const {ph,np,d,c,g}=stBuild({s});
-      const pre="rc"+i+"-"+j;
-      const checks=[["-art",ph.art||"∅",(ph.art||"").toLowerCase()],["-adj","‑"+ph.end,ph.end]];
-      if(document.getElementById(pre+"-noun")) checks.push(["-noun","‑"+(np.suf||"∅"),np.suf]);
-      let slotOk=true;
-      checks.forEach(([suf,disp,corr])=>{
-        const el=document.getElementById(pre+suf); if(!el)return;
-        total++;
-        const good=normEnd(el.value)===corr;
-        if(good)ok++; else slotOk=false;
-        el.disabled=true; el.classList.add(good?"ok":"bad");
-        if(!good){const f=document.createElement("span");f.className="st-fix";f.textContent=(corr||"∅");el.after(f);}
-        else if(!el.value.trim())el.value="∅";
-      });
-      if(!slotOk) errs.push(d+"|"+c+"|"+g);
-    });
+  groups.forEach(gr=>{
+    const v=validateAnswer(gr.slots);
+    v.slots.forEach(r=>{ total++; if(r.status==="ok")ok++; paintSlot(r,"st-fix"); r.el.disabled=true; });
+    if(!v.allOk) errs.push(gr.cell);
   });
   const pct=Math.round(100*ok/total);
   META.stories=META.stories||{};
@@ -3177,24 +3279,41 @@ function examRender(){
       ${it.rows.map((r,i)=>`<div class="ex-para-row"><span class="cs">${r.c}</span>${phraseInputs("ex"+i,r.ph,r.np)}</div>`).join("")}`;
   }
   exBox.innerHTML = prog+body+`
+    <div class="lbl" id="ex-hint" style="margin-top:8px"></div>
     <div class="nextrow"><button class="btn primary" id="ex-next">${EX.idx+1===total?"Zakończ i oceń":"Dalej →"} (Enter)</button></div>`;
-  exBox.querySelectorAll("input.tend").forEach(inp=>{
-    inp.addEventListener("keydown",e=>{if(e.key==="Enter"){e.preventDefault();examCollect();}});
-  });
+  examForced=false;
+  wireEnterChain(exBox,examCollect);
   document.getElementById("ex-next").addEventListener("click",examCollect);
   const f=exBox.querySelector("input.tend"); if(f)f.focus();
 }
 function gradePhrase(prefix,it,ph,np,ctx){
-  const artV=normEnd(document.getElementById(prefix+"-art").value);
-  const adjV=normEnd(document.getElementById(prefix+"-adj").value);
-  const push=(part,given,correct,ok)=>EX.blanks.push({cell:it.d+"|"+ctx.c+"|"+ctx.g, part, given, correct, ok, ctx});
-  push("rodzajnik",artV,ph.art||"∅",artV===(ph.art||"").toLowerCase());
-  push("przymiotnik",adjV,ph.end,adjV===ph.end);
-  const nEl=document.getElementById(prefix+"-noun");
-  if(nEl){const nV=normEnd(nEl.value); push("rzeczownik",nV,np.suf||"∅",nV===np.suf);}
+  const v=validateAnswer(phraseSlots(prefix,ph,np));
+  v.slots.forEach(r=>EX.blanks.push({
+    cell:it.d+"|"+ctx.c+"|"+ctx.g, part:SLOT_LABEL[r.kind],
+    given:r.given, correct:r.expected||"∅", ok:r.status==="ok", ctx
+  }));
 }
+/* zbiorcza walidacja ekranu egzaminu — te same sloty, ta sama funkcja */
+function examValidateScreen(){
+  const it=EX.items[EX.idx];
+  const slots = it.kind==="sent"
+    ? phraseSlots("ex",it.ph,it.np)
+    : it.rows.flatMap((r,i)=>phraseSlots("ex"+i,r.ph,r.np));
+  return validateAnswer(slots);
+}
+let examForced=false;
 function examCollect(){
   const it=EX.items[EX.idx];
+  const v=examValidateScreen();
+  if(!v.complete && !examForced){
+    examForced=true;
+    paintMissingOnly(v);
+    const h=document.getElementById("ex-hint"); if(h) h.textContent=missingMsg(v);
+    const nb=document.getElementById("ex-next"); if(nb) nb.textContent="Dalej mimo braków";
+    const first=v.missing[0]; if(first&&first.el) first.el.focus();
+    return;
+  }
+  examForced=false;
   if(it.kind==="sent"){
     gradePhrase("ex",it,it.ph,it.np,{c:it.c,g:it.g,text:`${it.frame[0]} ___ ${it.frame[1]}`,full:(`${it.frame[0]} ${it.ph.text} ${it.frame[1]}`).replace(/\s+([.,])/g,"$1")});
   } else {
